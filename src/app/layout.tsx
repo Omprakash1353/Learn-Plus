@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Adlam } from "next/font/google";
-import { Toaster } from "sonner";
 import localFont from "next/font/local";
+import { Toaster } from "sonner";
 
 import { BreakpointIndicator } from "@/components/breakpoint-indicator";
+import { QueryProvider } from "@/contexts/query-provider";
 import { SessionProvider } from "@/contexts/session-provider";
 import { ThemeProvider } from "@/contexts/theme-provider";
 import { validateRequest } from "@/lib/lucia";
@@ -44,13 +45,15 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SessionProvider value={sessionData}>
-            <div className="relative flex min-h-screen flex-col overflow-hidden">
-              {children}
-            </div>
-          </SessionProvider>
-          <BreakpointIndicator />
-          <Toaster />
+          <QueryProvider>
+            <SessionProvider value={sessionData}>
+              <div className="relative flex min-h-screen flex-col overflow-hidden">
+                {children}
+              </div>
+            </SessionProvider>
+            <BreakpointIndicator />
+            <Toaster />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

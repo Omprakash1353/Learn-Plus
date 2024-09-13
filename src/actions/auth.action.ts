@@ -12,10 +12,22 @@ import { signInSchema } from "@/app/[...auth]/_components/sign-in-form";
 import { signUpSchema } from "@/app/[...auth]/_components/sign-up-form";
 import { getErrorMessage } from "@/helpers/errorHandler";
 import { db } from "@/lib/db";
-import { emailVerificationTable, lower, userTable } from "@/lib/db/schema";
-import Email from "@/lib/email";
+import {
+  emailVerificationTable,
+  instructorTable,
+  lower,
+  userTable,
+} from "@/lib/db/schema";
+import Email from "@/service/email";
 import { lucia, validateRequest } from "@/lib/lucia";
-import { github, google } from "@/lib/lucia/oauth";
+import {
+  github as githubOAuthInstructor,
+  google as googleOAuthInstructor,
+} from "@/lib/lucia/instructor/oauth";
+import {
+  github as githubOAuthUser,
+  google as googleOAuthUser,
+} from "@/lib/lucia/oauth";
 
 export const signUp = async (values: z.infer<typeof signUpSchema>) => {
   try {
@@ -30,19 +42,29 @@ export const signUp = async (values: z.infer<typeof signUpSchema>) => {
     const userId = generateId(15);
     const hashedPassword = await hash(values.password, 10);
 
-    await db
-      .insert(userTable)
-      .values({
-        id: userId,
-        name: values.name,
-        email: values.email.toLowerCase(),
-        hashedPassword,
-      })
-      .returning({
-        id: userTable.id,
-        name: userTable.name,
-        email: userTable.email,
-      });
+    await db.transaction(async (tx) => {
+      const res = await tx
+        .insert(userTable)
+        .values({
+          id: userId,
+          name: values.name,
+          email: values.email.toLowerCase(),
+          hashedPassword,
+          role: values.role,
+        })
+        .returning({
+          id: userTable.id,
+          name: userTable.name,
+          email: userTable.email,
+          role: userTable.role,
+        });
+
+      if (res[0].role === "INSTRUCTOR") {
+        await tx.insert(instructorTable).values({ id: res[0].id });
+      }
+
+      console.log(res);
+    });
 
     const code = Math.random().toString(36).substring(2, 8);
 
@@ -214,7 +236,9 @@ export const resendVerificationEmail = async (email: string) => {
   }
 };
 
-export const createGoogleAuthorizationURL = async () => {
+export const createGoogleAuthorizationURL = async (
+  role: "INSTRUCTOR" | "STUDENT",
+) => {
   try {
     const state = generateState();
     const codeVerifier = generateCodeVerifier();
@@ -227,13 +251,28 @@ export const createGoogleAuthorizationURL = async () => {
       httpOnly: true,
     });
 
-    const authorizationURL = await google.createAuthorizationURL(
-      state,
-      codeVerifier,
-      {
-        scopes: ["email", "profile"],
-      },
-    );
+    let authorizationURL: any;
+
+    if (role === "INSTRUCTOR") {
+      authorizationURL = await googleOAuthInstructor.createAuthorizationURL(
+        state,
+        codeVerifier,
+        {
+          scopes: ["email", "profile"],
+        },
+      );
+      console.log(authorizationURL);
+    } else {
+      authorizationURL = await googleOAuthUser.createAuthorizationURL(
+        state,
+        codeVerifier,
+        {
+          scopes: ["email", "profile"],
+        },
+      );
+    }
+
+    console.debug("authorizationURL", authorizationURL);
 
     return { success: true, data: authorizationURL };
   } catch (error: unknown) {
@@ -241,7 +280,9 @@ export const createGoogleAuthorizationURL = async () => {
   }
 };
 
-export const createGithubAuthorizationURL = async () => {
+export const createGithubAuthorizationURL = async (
+  role: "INSTRUCTOR" | "STUDENT",
+) => {
   try {
     const state = generateState();
 
@@ -249,10 +290,20 @@ export const createGithubAuthorizationURL = async () => {
       httpOnly: true,
     });
 
-    const authorizationURL = await github.createAuthorizationURL(state, {
-      scopes: ["user:email"],
-    });
+    let authorizationURL: any;
 
+    if (role === "INSTRUCTOR") {
+      authorizationURL = await githubOAuthInstructor.createAuthorizationURL(
+        state,
+        {
+          scopes: ["user:email"],
+        },
+      );
+    } else {
+      authorizationURL = await githubOAuthUser.createAuthorizationURL(state, {
+        scopes: ["user:email"],
+      });
+    }
     return { success: true, data: authorizationURL };
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) };

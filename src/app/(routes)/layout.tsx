@@ -1,5 +1,6 @@
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/navbar";
+import { validateRequest } from "@/lib/lucia";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (

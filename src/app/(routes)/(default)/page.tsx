@@ -1,3 +1,7 @@
+import { CheckCircle, User } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+
 import { EmblaTestimonials } from "@/components/custom/testimonial";
 import { Icons } from "@/components/icons";
 import {
@@ -7,11 +11,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
-import Link from "next/link";
-import { ContactForm } from "./form";
-import { CheckCircle, User } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ContactForm } from "./form";
 
 export default async function Home() {
   return (

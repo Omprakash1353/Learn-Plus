@@ -1,9 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { LoaderCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { contactAction } from "@/actions/contact.action";
+import { ToastMessage } from "@/components/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -16,7 +19,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { contactAction } from "@/actions/contact.action";
 
 export const contactUsForm = z.object({
   email: z.string().email({ message: "Invalid Email" }),
@@ -36,7 +38,12 @@ export function ContactForm() {
 
   const onSubmit = async (values: z.infer<typeof contactUsForm>) => {
     const res = await contactAction(values);
-    console.log(res);
+    if (res.success) {
+      form.reset();
+      ToastMessage({ message: res.message, type: "success" });
+    } else {
+      ToastMessage({ message: res?.error || res.message, type: "error" });
+    }
   };
 
   return (
@@ -85,8 +92,16 @@ export function ContactForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full">
-              Submit
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={!form.formState.isValid || form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? (
+                <LoaderCircle size={20} className="animate-spin" />
+              ) : (
+                "Submit"
+              )}
             </Button>
           </form>
         </Form>

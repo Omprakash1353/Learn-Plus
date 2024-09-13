@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LoaderCircle } from "lucide-react";
 
 export const courseCreate = z.object({
   title: z.string().min(1, { message: "Title is required" }),
@@ -92,7 +93,11 @@ export default function Page() {
                 </Button>
               </Link>
               <Button type="submit" disabled={!isValid || isSubmitting}>
-                Continue
+                {form.formState.isSubmitting ? (
+                  <LoaderCircle size={20} className="animate-spin" />
+                ) : (
+                  "Continue"
+                )}
               </Button>
             </div>
           </form>

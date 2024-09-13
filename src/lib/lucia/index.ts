@@ -25,7 +25,7 @@ export const validateRequest = cache(async () => {
       cookies().set(
         sessionCookie.name,
         sessionCookie.value,
-        sessionCookie.attributes
+        sessionCookie.attributes,
       );
     }
     if (!session) {
@@ -33,7 +33,7 @@ export const validateRequest = cache(async () => {
       cookies().set(
         sessionCookie.name,
         sessionCookie.value,
-        sessionCookie.attributes
+        sessionCookie.attributes,
       );
     }
   } catch {}
@@ -50,7 +50,7 @@ declare module "lucia" {
 interface DatabaseUserAttributes {
   id: string;
   name: string;
-  role: typeof roleEnums.enumValues[number];
-  profile_picture_url: string;
+  role: (typeof roleEnums.enumValues)[number];
+  profilePictureUrl: string;
   email: string;
 }

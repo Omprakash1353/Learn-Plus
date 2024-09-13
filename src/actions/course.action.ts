@@ -5,6 +5,7 @@ import { getErrorMessage } from "@/helpers/errorHandler";
 import { db } from "@/lib/db";
 import { courseTable } from "@/lib/db/schema";
 import { validateRequest } from "@/lib/lucia";
+import { eq } from "drizzle-orm";
 import { generateId } from "lucia";
 import { z } from "zod";
 
@@ -42,13 +43,65 @@ export const createCourse = async (data: z.infer<typeof courseCreate>) => {
   }
 };
 
-export const editCourse = async () => {
+export const editCourse = async (formData: FormData) => {
   try {
+    const courseData: Partial<{
+      id: string;
+      title: string;
+      description?: string;
+      price?: number;
+      isPublished: boolean;
+      tags: string[];
+      thumbnail?: File;
+    }> = {
+      id: formData.get("id") as string,
+      title: formData.get("title")
+        ? (formData.get("title") as string)
+        : undefined,
+      description: formData.get("description")
+        ? (formData.get("description") as string)
+        : undefined,
+      price: formData.get("price")
+        ? parseFloat(formData.get("price") as string)
+        : undefined,
+      isPublished: formData.get("isPublished") === "true",
+      tags: (formData.getAll("tags") as string[]) || [],
+      thumbnail: formData.get("thumbnail")
+        ? (formData.get("thumbnail") as File)
+        : undefined,
+    };
+
+    if (courseData.id === undefined || courseData.id === "undefined")
+      return {
+        success: false,
+        message: "Insufficient Data",
+        error: "Course ID is not present",
+      };
+
+    const validCourseData = Object.fromEntries(
+      Object.entries(courseData).filter(([_, v]) => v !== undefined),
+    );
+
+    console.log(validCourseData);
+
+    const course = await db
+      .update(courseTable)
+      .set(validCourseData)
+      .where(eq(courseTable.id, courseData.id))
+      .returning({ id: courseTable.id, description: courseTable.description });
+
+    console.info(course);
+
     return {
       success: true,
-      message: "Course Updated successfully !!!",
+      message: "Course updated successfully!",
+      courseId: "123",
     };
   } catch (error: unknown) {
-    return { success: false, message: "", error: getErrorMessage(error) };
+    return {
+      success: false,
+      message: "Failed to update course.",
+      error: getErrorMessage(error),
+    };
   }
 };

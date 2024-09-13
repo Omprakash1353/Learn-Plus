@@ -6,19 +6,24 @@ import { Icons } from "@/components/icons";
 import { ToastMessage } from "@/components/toast";
 import { Button } from "@/components/ui/button";
 import { Github } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export const SocialAuth = () => {
+  const pathname = usePathname();
+  const role = pathname === "/auth/instructor" ? "INSTRUCTOR" : "STUDENT";
+
   const onGoogleSignInAuth = async () => {
-    const res = await createGoogleAuthorizationURL();
+    const res = await createGoogleAuthorizationURL(role);
     if (res.error) {
       ToastMessage({ message: res.error, type: "error" });
     } else if (res.success) {
+      console.debug(res.data);
       if (res.data) window.location.href = res.data?.toString();
     }
   };
 
   const onGithubSignInAuth = async () => {
-    const res = await createGithubAuthorizationURL();
+    const res = await createGithubAuthorizationURL(role);
     if (res.error) {
       ToastMessage({ message: res.error, type: "error" });
     } else if (res.success) {

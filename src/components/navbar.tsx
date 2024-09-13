@@ -1,7 +1,15 @@
 "use client";
 
 import { LaptopIcon, MoonIcon, SunIcon } from "@radix-ui/react-icons";
-import { Bell, BookOpen, Laptop, LogOut, User, User2 } from "lucide-react";
+import {
+  Bell,
+  BookOpen,
+  Laptop,
+  LayoutDashboard,
+  LogOut,
+  User,
+  User2,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import Link from "next/link";
@@ -83,27 +91,43 @@ export function Header() {
         </div>
         <div className="flex items-center space-x-4">
           <CommandMenu />
-          {user?.email ? (
+          {user?.email || user?.name ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild className="cursor-pointer">
                 <Avatar className="cursor-pointer">
-                  <AvatarImage src={user.profile_picture_url} />
+                  <AvatarImage src={user?.profilePictureUrl} />
                   <AvatarFallback>
                     {user.name.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-40">
+              <DropdownMenuContent className="w-48">
                 <DropdownMenuLabel>
                   Hello {user.name.toString()} 🖐️
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
-                  <Link href={`/u/${user.name}`}>
+                  <Link href={`/u`}>
                     <User className="mr-2 inline-block h-4 w-4" />
                     <span>Profile</span>
                   </Link>
                 </DropdownMenuItem>
+                {user.role === "INSTRUCTOR" && (
+                  <DropdownMenuItem>
+                    <Link href={"/instructor"} className="w-full">
+                      <LayoutDashboard className="mr-2 inline-block h-4 w-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {user.role === "ADMIN" && (
+                  <DropdownMenuItem>
+                    <Link href={"/admin"} className="w-full">
+                      <LayoutDashboard className="mr-2 inline-block h-4 w-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span onClick={handleSignOut}>Sign Out</span>
@@ -133,8 +157,8 @@ export function Header() {
               </Button>
             </>
           )}
-          
-          {user?.email && (
+
+          {(user?.email || user?.name) && (
             <div className="relative cursor-pointer">
               <Bell className="h-5 w-5" />
               <span className="absolute right-0 top-0 flex h-2 w-2">

@@ -6,6 +6,16 @@ type sendEmailProps = {
   html: string;
 };
 
+type emailResponse = {
+  accepted: string[];
+  rejected: string[];
+  messageSize: number;
+  envelopeTime: number;
+  messageId: string;
+  response: string;
+  envelope: { from: string; to: string[] };
+};
+
 class Email {
   private transporter: ReturnType<typeof createTransport>;
 
@@ -22,13 +32,19 @@ class Email {
     });
   }
 
-  async sendEmail({ to, subject, html }: sendEmailProps) {
-    await this.transporter.sendMail({
+  async sendEmail({
+    to,
+    subject,
+    html,
+  }: sendEmailProps): Promise<emailResponse> {
+    const res: emailResponse | any = await this.transporter.sendMail({
       from: `${process.env.GMAIL_USER}`,
       to,
       subject,
       html,
     });
+
+    return res;
   }
 }
 

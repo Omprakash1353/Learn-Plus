@@ -19,3 +19,14 @@ export type LiveCardData<T extends Tag> = {
   watching: number;
   tags: T[];
 };
+
+export type Section = {
+  id: string;
+  title: string;
+};
+
+export type Module = {
+  id: string;
+  title: string;
+  sections: Section[];
+};

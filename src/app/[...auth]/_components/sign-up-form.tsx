@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useCountdown } from "usehooks-ts";
 import { SocialAuth } from "./social-auth";
+import { usePathname } from "next/navigation";
 
 export const signUpSchema = z
   .object({
@@ -40,6 +41,7 @@ export const signUpSchema = z
     confirmPassword: z
       .string()
       .min(8, { message: "Password must be atleast 8 characters long" }),
+    role: z.enum(["INSTRUCTOR", "STUDENT"]).default("STUDENT"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -49,6 +51,9 @@ export const signUpSchema = z
 export function SignUpForm() {
   const [showResendVerificationEmail, setShowResendVerificationEmail] =
     useState(false);
+
+  const pathname = usePathname();
+  console.log(pathname);
 
   const [count, { startCountdown, stopCountdown, resetCountdown }] =
     useCountdown({
@@ -74,7 +79,10 @@ export function SignUpForm() {
   });
 
   async function onSubmit(values: z.infer<typeof signUpSchema>) {
-    const res = await signUp(values);
+    const res = await signUp({
+      ...values,
+      role: pathname === "/auth/instructor" ? "INSTRUCTOR" : "STUDENT",
+    });
     startCountdown();
     if (res.error) {
       ToastMessage({ message: res.error, type: "error" });

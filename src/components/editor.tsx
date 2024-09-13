@@ -8,7 +8,7 @@ const modules = {
     [{ header: [1, 2, false] }],
     ["bold", "italic", "underline", "strike", "blockquote"],
     [{ list: "ordered" }, { list: "bullet" }],
-    ["link", "color", "image"],
+    ["link", "color"],
     [{ "code-block": true }],
     ["clean"],
   ],
@@ -25,7 +25,6 @@ const formats = [
   "bullet",
   "link",
   "indent",
-  "image",
   "code-block",
   "color",
 ];
