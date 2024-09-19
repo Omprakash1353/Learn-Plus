@@ -27,9 +27,7 @@ export default async function CourseEditPage({
     return redirect("/");
   }
 
-  const courseData = (await db.query.courseTable.findFirst({
-    where: eq(courseTable.id, params.courseId),
-  })) as unknown as courseType;
+  const tags = await db.query.tagTable.findMany({});
 
   return (
     <div className="mx-auto max-w-full px-4 py-12 sm:px-6 lg:px-8">
@@ -43,7 +41,7 @@ export default async function CourseEditPage({
           </Link>
         </Button>
       </div>
-      <CourseEditForm courseData={courseData} />
+      <CourseEditForm courseId={params.courseId} tags={tags} />
     </div>
   );
 }

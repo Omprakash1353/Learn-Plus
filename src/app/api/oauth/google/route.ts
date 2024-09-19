@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getErrorMessage } from "@/helpers/errorHandler";
 import { db } from "@/lib/db";
-import { oauthAccountTable, userTable } from "@/lib/db/schema";
+import { imageTable, oauthAccountTable, userTable } from "@/lib/db/schema";
 import { lucia } from "@/lib/lucia";
 import { google } from "@/lib/lucia/oauth";
+import { generateId } from "lucia";
 
 interface GoogleUser {
   id: string;
@@ -46,7 +47,7 @@ export const GET = async (req: NextRequest) => {
 
     const googleRes = await fetch(
       "https://www.googleapis.com/oauth2/v1/userinfo",
-      { headers: { Authorization: `Bearer ${accessToken}` }, method: "GET" }
+      { headers: { Authorization: `Bearer ${accessToken}` }, method: "GET" },
     );
 
     const googleData = (await googleRes.json()) as GoogleUser;
@@ -58,13 +59,21 @@ export const GET = async (req: NextRequest) => {
       });
 
       if (!userAvail) {
+        const imageRes = await trx
+          .insert(imageTable)
+          .values({
+            id: googleData.picture,
+            secure_url: googleData.picture,
+          })
+          .returning({ id: imageTable.id });
+
         const newUserRes = await trx
           .insert(userTable)
           .values({
             email: googleData.email,
             id: googleData.id,
             name: googleData.name,
-            profilePictureUrl: googleData.picture,
+            profilePictureUrl: imageRes[0].id,
             isEmailVerified: googleData.verified_email,
           })
           .returning({ id: userTable.id });
@@ -73,24 +82,26 @@ export const GET = async (req: NextRequest) => {
           trx.rollback();
           return Response.json(
             { error: "Failed to create user" },
-            { status: 500 }
+            { status: 500 },
           );
         }
 
-        const createOAuthAccountRes = await trx.insert(oauthAccountTable).values({
-          accessToken,
-          expiresAt: accessTokenExpiresAt,
-          id: googleData.id,
-          provider: "google",
-          providerUserId: googleData.id,
-          userId: googleData.id,
-        });
+        const createOAuthAccountRes = await trx
+          .insert(oauthAccountTable)
+          .values({
+            accessToken,
+            expiresAt: accessTokenExpiresAt,
+            id: googleData.id,
+            provider: "google",
+            providerUserId: googleData.id,
+            userId: googleData.id,
+          });
 
         if (createOAuthAccountRes.rowCount === 0) {
           trx.rollback();
           return Response.json(
             { error: "Failed to create user" },
-            { status: 500 }
+            { status: 500 },
           );
         }
       } else {
@@ -103,7 +114,7 @@ export const GET = async (req: NextRequest) => {
           trx.rollback();
           return Response.json(
             { error: "Failed to update OAuthAccountRes" },
-            { status: 500 }
+            { status: 500 },
           );
         }
       }
@@ -117,7 +128,7 @@ export const GET = async (req: NextRequest) => {
     cookies().set(
       sessionCookie.name,
       sessionCookie.value,
-      sessionCookie.attributes
+      sessionCookie.attributes,
     );
 
     cookies().set("state", "", { expires: new Date(0) });
@@ -125,7 +136,7 @@ export const GET = async (req: NextRequest) => {
 
     return NextResponse.redirect(
       new URL("/", process.env.NEXT_PUBLIC_BASE_URL),
-      { status: 302 }
+      { status: 302 },
     );
   } catch (error: unknown) {
     return Response.json({ error: getErrorMessage(error) }, { status: 500 });

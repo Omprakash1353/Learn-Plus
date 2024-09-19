@@ -2,9 +2,13 @@ import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-import { getErrorMessage } from "@/helpers/errorHandler";
 import { db } from "@/lib/db";
-import { instructorTable, oauthAccountTable, userTable } from "@/lib/db/schema";
+import {
+  imageTable,
+  instructorTable,
+  oauthAccountTable,
+  userTable,
+} from "@/lib/db/schema";
 import { lucia } from "@/lib/lucia";
 import { google } from "@/lib/lucia/oauth";
 
@@ -65,13 +69,21 @@ export const GET = async (req: NextRequest) => {
       });
 
       if (!userAvail) {
+        const imageRes = await trx
+          .insert(imageTable)
+          .values({
+            id: googleData.picture,
+            secure_url: googleData.picture,
+          })
+          .returning({ id: imageTable.id });
+
         const newUserRes = await trx
           .insert(userTable)
           .values({
             email: googleData.email,
             id: googleData.id,
             name: googleData.name,
-            profilePictureUrl: googleData.picture,
+            profilePictureUrl: imageRes[0].id,
             isEmailVerified: googleData.verified_email,
             role: "INSTRUCTOR",
           })

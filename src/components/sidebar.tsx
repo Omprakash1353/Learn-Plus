@@ -9,6 +9,7 @@ import {
   MessagesSquare,
   User,
   Ticket,
+  TagsIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -73,6 +74,12 @@ export function Sidebar({
         icon: <User size={20} />,
         isActive: (pathname) => pathname === "/admin/users",
       },
+      {
+        name: "More+",
+        href: "/admin/more",
+        icon: <TagsIcon size={20} />,
+        isActive: (pathname) => pathname === "/admin/more",
+      }
     ],
     INSTRUCTOR: [
       {

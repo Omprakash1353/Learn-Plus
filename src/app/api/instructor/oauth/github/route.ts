@@ -4,7 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getErrorMessage } from "@/helpers/errorHandler";
 import { db } from "@/lib/db";
-import { instructorTable, oauthAccountTable, userTable } from "@/lib/db/schema";
+import {
+  imageTable,
+  instructorTable,
+  oauthAccountTable,
+  userTable,
+} from "@/lib/db/schema";
 import { lucia } from "@/lib/lucia";
 import { github } from "@/lib/lucia/oauth";
 
@@ -47,12 +52,20 @@ export const GET = async (req: NextRequest) => {
       });
 
       if (!userAvail) {
+        const imageRes = await trx
+          .insert(imageTable)
+          .values({
+            secure_url: githubData.avatar_url,
+            id: githubData.avatar_url,
+          })
+          .returning({ id: imageTable.id });
+
         const newUserRes = await trx
           .insert(userTable)
           .values({
             id: githubData.id,
             name: githubData.name || githubData.login,
-            profilePictureUrl: githubData.avatar_url,
+            profilePictureUrl: imageRes[0].id,
             role: "INSTRUCTOR",
           })
           .returning({ id: userTable.id });

@@ -32,22 +32,26 @@ const formats = [
 export default function Editor({
   placeholder = "Write something...",
   value = "",
+  disabled = false,
   onChange,
 }: {
   placeholder: string;
   value: string;
+  disabled: boolean;
   onChange: (...event: any[]) => void;
 }) {
   return (
     <>
       <ReactQuill
-        className="rounded-md border"
+        className="rounded-md border h-auto max-h-[500px] overflow-y-auto"
         theme="snow"
         placeholder={placeholder}
         value={value}
+        readOnly={disabled}
         onChange={onChange}
         modules={modules}
         formats={formats}
+        style={{ height: "auto", maxHeight: "500px" }}
       />
     </>
   );

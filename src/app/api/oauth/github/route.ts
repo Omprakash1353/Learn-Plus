@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getErrorMessage } from "@/helpers/errorHandler";
 import { db } from "@/lib/db";
-import { oauthAccountTable, userTable } from "@/lib/db/schema";
+import { imageTable, oauthAccountTable, userTable } from "@/lib/db/schema";
 import { lucia } from "@/lib/lucia";
 import { github } from "@/lib/lucia/oauth";
 
@@ -47,12 +47,17 @@ export const GET = async (req: NextRequest) => {
       });
 
       if (!userAvail) {
+        const imageRes = await trx.insert(imageTable).values({
+          id: githubData.avatar_url,
+          secure_url: githubData.avatar_url,
+        }).returning({ id: imageTable.id });
+
         const newUserRes = await trx
           .insert(userTable)
           .values({
             id: githubData.id,
             name: githubData.name || githubData.login,
-            profilePictureUrl: githubData.avatar_url,
+            profilePictureUrl: imageRes[0].id,
           })
           .returning({ id: userTable.id });
 
@@ -60,23 +65,25 @@ export const GET = async (req: NextRequest) => {
           trx.rollback();
           return Response.json(
             { error: "Failed to create user" },
-            { status: 500 }
+            { status: 500 },
           );
         }
 
-        const createOAuthAccountRes = await trx.insert(oauthAccountTable).values({
-          accessToken,
-          id: githubData.id,
-          provider: "github",
-          providerUserId: githubData.id,
-          userId: githubData.id,
-        });
+        const createOAuthAccountRes = await trx
+          .insert(oauthAccountTable)
+          .values({
+            accessToken,
+            id: githubData.id,
+            provider: "github",
+            providerUserId: githubData.id,
+            userId: githubData.id,
+          });
 
         if (createOAuthAccountRes.rowCount === 0) {
           trx.rollback();
           return Response.json(
             { error: "Failed to create user" },
-            { status: 500 }
+            { status: 500 },
           );
         }
       } else {
@@ -89,7 +96,7 @@ export const GET = async (req: NextRequest) => {
           trx.rollback();
           return Response.json(
             { error: "Failed to update OAuthAccountRes" },
-            { status: 500 }
+            { status: 500 },
           );
         }
       }
@@ -103,14 +110,14 @@ export const GET = async (req: NextRequest) => {
     cookies().set(
       sessionCookie.name,
       sessionCookie.value,
-      sessionCookie.attributes
+      sessionCookie.attributes,
     );
 
     cookies().set("state", "", { expires: new Date(0) });
 
     return NextResponse.redirect(
       new URL("/", process.env.NEXT_PUBLIC_BASE_URL),
-      { status: 302 }
+      { status: 302 },
     );
   } catch (error: unknown) {
     return Response.json({ error: getErrorMessage(error) }, { status: 500 });

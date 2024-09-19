@@ -11,8 +11,6 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-// ENUMS
-
 export function lower(email: AnyPgColumn): SQL {
   return sql`lower(${email})`;
 }
@@ -51,7 +49,9 @@ export const userTable = pgTable(
     isEmailVerified: boolean("is_email_verified").notNull().default(false),
     hashedPassword: text("password"),
     role: roleEnums("role").default("STUDENT").notNull(),
-    profilePictureUrl: text("profile_picture_url"),
+    profilePictureUrl: text("profile_picture_url").references(
+      () => imageTable.id,
+    ),
     bio: text("bio"),
     expertize: text("expertize"),
     qualification: text("qualification"),
@@ -125,7 +125,9 @@ export const courseTable = pgTable("courses", {
   price: integer("price").default(0),
   status: courseStatusEnums("status").default("DRAFT").notNull(),
   rating: real("rating").default(0),
-  thumbnailUrl: text("thumbnail_url"),
+  thumbnailUrl: text("thumbnail_url").references(() => imageTable.id, {
+    onDelete: "set null",
+  }),
   instructorId: text("instructor_id").references(() => instructorTable.id),
   createdAt: timestamp("created_at", {
     withTimezone: true,
@@ -272,6 +274,21 @@ export const courseTagsTable = pgTable("course_tags", {
     .notNull(),
 });
 
+export const imageTable = pgTable("images", {
+  id: text("id").primaryKey().notNull(),
+  secure_url: text("secure_url").notNull(),
+  public_id: text("public_id"),
+  asset_id: text("asset_id"),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "date",
+  }).defaultNow(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "date",
+  }).defaultNow(),
+});
+
 // RELATIONS
 
 export const usersRelations = relations(userTable, ({ one, many }) => ({
@@ -284,6 +301,10 @@ export const usersRelations = relations(userTable, ({ one, many }) => ({
   instructor: one(instructorTable, {
     fields: [userTable.id],
     references: [instructorTable.id],
+  }),
+  images: one(imageTable, {
+    fields: [userTable.profilePictureUrl],
+    references: [imageTable.id],
   }),
 }));
 
@@ -322,6 +343,10 @@ export const coursesRelations = relations(courseTable, ({ one, many }) => ({
   }),
   enrollments: many(enrollmentTable),
   tags: many(courseTagsTable),
+  images: one(imageTable, {
+    fields: [courseTable.thumbnailUrl],
+    references: [imageTable.id],
+  }),
 }));
 
 export const tagsRelations = relations(tagTable, ({ many }) => ({
@@ -347,5 +372,16 @@ export const enrollmentsRelations = relations(enrollmentTable, ({ one }) => ({
   course: one(courseTable, {
     fields: [enrollmentTable.courseId],
     references: [courseTable.id],
+  }),
+}));
+
+export const imageRelations = relations(imageTable, ({ one }) => ({
+  user: one(userTable, {
+    fields: [imageTable.id],
+    references: [userTable.profilePictureUrl],
+  }),
+  course: one(courseTable, {
+    fields: [imageTable.id],
+    references: [courseTable.thumbnailUrl],
   }),
 }));

@@ -1,13 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Loader2, Tag as TagIcon } from "lucide-react";
-import { useCallback, useState } from "react";
+import { Check, Loader2, TagIcon } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import dynamic from "next/dynamic";
 
+import { editCourse } from "@/actions/course.action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,22 +27,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { courseType } from "../page";
-import { editCourse } from "@/actions/course.action";
-
-const predefinedTags = [
-  "Development",
-  "Design",
-  "Marketing",
-  "Business",
-  "Photography",
-  "Music",
-  "Personal Development",
-  "Health & Fitness",
-  "Finance",
-  "IT & Software",
-  "Lifestyle",
-];
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { courseByIdAction } from "../_action";
+import { ToastMessage } from "@/components/toast";
+import { queryClient } from "@/contexts/query-provider";
 
 export const courseEditSchema = z.object({
   title: z
@@ -64,11 +54,8 @@ export const courseEditSchema = z.object({
     }),
   isPublished: z.boolean().default(false),
   tags: z
-    .array(z.string())
+    .array(z.object({ id: z.string(), name: z.string() }))
     .min(0, { message: "Please select at least one tag." })
-    .refine((tags) => tags.every((tag) => predefinedTags.includes(tag)), {
-      message: "Invalid tag selected.",
-    })
     .refine((val) => new Set(val).size === val.length, {
       message: "Tags must be unique.",
     }),
@@ -77,20 +64,59 @@ export const courseEditSchema = z.object({
 
 const Editor = dynamic(() => import("@/components/editor"), { ssr: false });
 
-export function CourseEditForm({ courseData }: { courseData: courseType }) {
+export function CourseEditForm({
+  courseId,
+  tags: predefinedTags,
+}: {
+  courseId: string;
+  tags: { id: string; name: string }[];
+}) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
+
+  const {
+    data: courseData,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: [`course-${courseId}`],
+    queryFn: async () => {
+      const res = await courseByIdAction(courseId);
+      return res.data;
+    },
+    enabled: !!courseId,
+    refetchOnWindowFocus: false,
+    retry: false,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { mutateAsync: courseUpdateMutation } = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const res = await editCourse(formData);
+      return res;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`course-${courseId}`] });
+      if (data.success) {
+        ToastMessage({ message: data.message, type: "success" });
+      } else {
+        ToastMessage({ message: data.error || data.message, type: "error" });
+      }
+    },
+  });
 
   const form = useForm<z.infer<typeof courseEditSchema>>({
     resolver: zodResolver(courseEditSchema),
     mode: "onChange",
     defaultValues: {
-      title: courseData.title,
-      description: courseData.description || "",
-      price: courseData.price.toString(),
-      isPublished: false,
-      thumbnail: courseData.thumbnailUrl || "",
-      tags: courseData.tags || [],
+      title: courseData?.title || "",
+      description: courseData?.description || "",
+      price: courseData?.price?.toString() || "0",
+      isPublished: courseData?.status === "PUBLISHED" ? true : false,
+      thumbnail: courseData?.thumbnailUrl || "",
+      tags: courseData?.tags || [],
     },
   });
 
@@ -98,10 +124,11 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
     onDrop: (acceptedFiles) => {
       if (acceptedFiles[0]) {
         setThumbnail(acceptedFiles[0]);
+        form.setValue("thumbnail", acceptedFiles[0]); // Set thumbnail in form state
       }
     },
     accept: { "image/*": [] },
-    maxSize: 1024 * 1024,
+    maxSize: 1024 * 1024, // 1MB
     maxFiles: 1,
   });
 
@@ -109,12 +136,12 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
     (values: z.infer<typeof courseEditSchema>) => {
       const changedData: Partial<z.infer<typeof courseEditSchema>> = {};
 
-      if (values.title !== courseData.title) changedData.title = values.title;
-      if (values.description !== courseData.description)
+      if (values.title !== courseData?.title) changedData.title = values.title;
+      if (values.description !== courseData?.description)
         changedData.description = values.description;
-      if (values.price !== courseData.price.toString())
+      if (values.price !== courseData?.price?.toString())
         changedData.price = values.price;
-      if (JSON.stringify(values.tags) !== JSON.stringify(courseData.tags))
+      if (JSON.stringify(values.tags) !== JSON.stringify(courseData?.tags))
         changedData.tags = values.tags;
 
       if (thumbnail) {
@@ -133,17 +160,19 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
         const changedValues = getChangedValues(values);
 
         const formData = new FormData();
+        formData.set("id", courseId);
 
         Object.entries(changedValues).forEach(([key, value]) => {
           if (key === "thumbnail" && thumbnail) {
             formData.append(key, thumbnail);
+          } else if (key === "tags") {
+            values.tags.forEach((tag) => formData.append("tag", tag.id));
           } else {
             formData.append(key, value as string | Blob);
           }
         });
 
-        const res = await editCourse(formData);
-        console.log(res);
+        await courseUpdateMutation(formData);
       } catch (error) {
         console.error("Submission error:", error);
       } finally {
@@ -153,11 +182,42 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
     [thumbnail, getChangedValues],
   );
 
+  useEffect(() => {
+    form.reset({
+      title: courseData?.title || "",
+      description: courseData?.description || "",
+      price: courseData?.price?.toString() || "0",
+      isPublished: courseData?.status === "PUBLISHED" ? true : false,
+      thumbnail: courseData?.thumbnailUrl || "",
+      tags: courseData?.tags || [],
+    });
+  }, [courseData]);
+
+  const isFormDisabled = isLoading || isFetching || isSubmitting;
+
+  if (isLoading || isFetching) {
+    return (
+      <div className="grid grid-cols-5 items-start justify-start gap-x-8 gap-y-4">
+        <Skeleton className="col-span-3 h-[500px] w-full" />
+        <div className="col-span-2 grid gap-y-8">
+          <Skeleton className="h-[250px] w-full" />
+          <Skeleton className="h-[150px] w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return <div>Error: {error.message}</div>;
+  }
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-5 gap-8">
           <div className="col-span-3 space-y-8">
+            {/* Course Details */}
             <Card>
               <CardHeader>
                 <CardTitle>Course Details</CardTitle>
@@ -170,7 +230,11 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
                     <FormItem>
                       <FormLabel>Course Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter course title" {...field} />
+                        <Input
+                          placeholder="Enter course title"
+                          {...field}
+                          disabled={isFormDisabled}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -188,6 +252,7 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
                           value={field.value}
                           onChange={field.onChange}
                           placeholder="Write a compelling description of your course..."
+                          disabled={isFormDisabled}
                         />
                       </FormControl>
                       <FormMessage />
@@ -206,6 +271,7 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
                           type="number"
                           placeholder="Enter price"
                           {...field}
+                          disabled={isFormDisabled}
                         />
                       </FormControl>
                       <FormMessage />
@@ -217,6 +283,7 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
           </div>
 
           <div className="col-span-2 space-y-8">
+            {/* Course Thumbnail */}
             <FormField
               control={form.control}
               name="thumbnail"
@@ -233,40 +300,30 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
                         isDragActive
                           ? "border-primary bg-primary/10"
                           : "border-muted"
-                      }`}
+                      } ${isFormDisabled ? "pointer-events-none opacity-50" : ""}`}
                     >
-                      <input
-                        {...getInputProps()}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            field.onChange(file);
-                          } else {
-                            field.onChange(courseData.thumbnailUrl);
-                          }
-                        }}
-                      />
-                      {thumbnail || courseData.thumbnailUrl ? (
+                      <input {...getInputProps()} />
+                      {thumbnail || courseData?.thumbnailUrl ? (
                         <div className="space-y-2">
                           <img
                             src={
                               thumbnail
                                 ? URL.createObjectURL(thumbnail)
-                                : courseData.thumbnailUrl
+                                : courseData?.thumbnailUrl || undefined
                             }
                             alt="Course preview"
                             className="mx-auto max-h-48 rounded-md object-cover shadow-md"
                           />
                           <p className="text-sm text-muted-foreground">
-                            {thumbnail?.name || courseData.thumbnailUrl}
+                            {thumbnail?.name || courseData?.thumbnailUrl}
                           </p>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              field.onChange(null);
                               setThumbnail(null);
+                              form.setValue("thumbnail", "");
                             }}
                           >
                             Remove Image
@@ -306,6 +363,7 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
                           <Button
                             variant="outline"
                             className="w-full justify-between"
+                            disabled={isFormDisabled}
                           >
                             {field.value.length > 0
                               ? `${field.value.length} tag(s) selected`
@@ -317,27 +375,40 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
                             <div className="space-y-2">
                               {predefinedTags.map((tag) => (
                                 <div
-                                  key={tag}
+                                  key={tag.id}
                                   className="flex items-center space-x-2"
                                 >
                                   <Badge
                                     variant={
-                                      field.value.includes(tag)
+                                      field.value.some(
+                                        (selectedTag) =>
+                                          selectedTag.id === tag.id,
+                                      )
                                         ? "default"
                                         : "outline"
                                     }
                                     onClick={() => {
-                                      const newTags = field.value.includes(tag)
-                                        ? field.value.filter((t) => t !== tag)
+                                      if (isFormDisabled) return;
+                                      const tagExists = field.value.some(
+                                        (selectedTag) =>
+                                          selectedTag.id === tag.id,
+                                      );
+
+                                      const newTags = tagExists
+                                        ? field.value.filter(
+                                            (t) => t.id !== tag.id,
+                                          )
                                         : [...field.value, tag];
+
                                       field.onChange(newTags);
                                     }}
-                                    className="cursor-pointer"
+                                    className={`cursor-pointer ${isFormDisabled ? "opacity-50" : ""}`}
                                   >
-                                    {tag}
-                                    {field.value.includes(tag) && (
-                                      <Check className="ml-2 h-3 w-3" />
-                                    )}
+                                    {tag.name}
+                                    {field.value.some(
+                                      (selectedTag) =>
+                                        selectedTag.id === tag.id,
+                                    ) && <Check className="ml-2 h-3 w-3" />}
                                   </Badge>
                                 </div>
                               ))}
@@ -345,14 +416,11 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
                           </ScrollArea>
                         </PopoverContent>
                       </Popover>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
               </CardContent>
             </Card>
-
-            {/* Publish Toggle */}
             <FormField
               control={form.control}
               name="isPublished"
@@ -374,13 +442,15 @@ export function CourseEditForm({ courseData }: { courseData: courseType }) {
                 </FormItem>
               )}
             />
-
-            {/* Submit Button */}
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Button type="submit" className="w-full" disabled={isFormDisabled}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Course"
               )}
-              Submit Changes
             </Button>
           </div>
         </div>

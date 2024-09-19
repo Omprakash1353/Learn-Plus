@@ -1,27 +1,13 @@
-import { eq } from "drizzle-orm";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 
 import { Card } from "@/components/ui/card";
-import { db } from "@/lib/db";
-import { userTable } from "@/lib/db/schema";
 import { validateRequest } from "@/lib/lucia";
-import { redirect } from "next/navigation";
-import { ProfileForm, User } from "./_components/profile-form";
+import { ProfileForm } from "./_components/profile-form";
 
 export default async function UserProfile() {
   const { user } = await validateRequest();
   if (!user) return redirect("/");
-
-  const userProfileData = (await db.query.userTable.findFirst({
-    where: eq(userTable.id, user.id),
-    columns: {
-      isEmailVerified: false,
-      hashedPassword: false,
-      createdAt: false,
-      updatedAt: false,
-    },
-    with: { instructor: true },
-  })) as User;
 
   return (
     <div className="min-h-screen px-4 py-12 sm:px-6 lg:px-8">
@@ -35,7 +21,7 @@ export default async function UserProfile() {
             className="absolute bottom-0 right-0 h-auto w-64 object-contain"
           />
         </div>
-        <ProfileForm user={userProfileData} />
+        <ProfileForm />
       </Card>
     </div>
   );

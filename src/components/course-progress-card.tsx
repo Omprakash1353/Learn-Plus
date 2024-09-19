@@ -1,3 +1,7 @@
+import { BookOpen, Clock } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+
 import {
   Card,
   CardContent,
@@ -5,10 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, Clock } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { getImage } from "./custom/dynamic-image";
 import { Badge } from "./ui/badge";
 
 type CourseProgressCardProps = {
@@ -62,7 +62,6 @@ type CourseEnrollmentCardProps = {
 };
 
 export function CourseEnrollmentCard(props: CourseEnrollmentCardProps) {
-  // const { base64, img } = await getImage(props.img);
   return (
     <Link href={`/courses/${props.id}`}>
       <Card className="w-full max-w-sm cursor-pointer transition-shadow duration-300 hover:shadow-lg">
@@ -72,7 +71,7 @@ export function CourseEnrollmentCard(props: CourseEnrollmentCardProps) {
             alt={props.title}
             width={400}
             height={200}
-            className="h-[200px] w-full rounded-t-lg object-cover duration-300 transition-all"
+            className="h-[200px] w-full rounded-t-lg object-cover transition-all duration-300"
             style={{ aspectRatio: "400/200", objectFit: "cover" }}
             priority
           />
