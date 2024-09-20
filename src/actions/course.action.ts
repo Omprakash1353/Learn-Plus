@@ -1,6 +1,5 @@
 "use server";
 
-import { courseCreate } from "@/app/(routes)/(instructor)/instructor/courses/create/page";
 import { getErrorMessage } from "@/helpers/errorHandler";
 import { db } from "@/lib/db";
 import { courseTable, courseTagsTable, imageTable } from "@/lib/db/schema";
@@ -10,7 +9,7 @@ import { and, eq, inArray, ne } from "drizzle-orm";
 import { generateId } from "lucia";
 import { z } from "zod";
 
-export const createCourse = async (data: z.infer<typeof courseCreate>) => {
+export const createCourse = async (data: { title: string }) => {
   try {
     const { user, session } = await validateRequest();
     if (

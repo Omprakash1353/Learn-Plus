@@ -198,25 +198,8 @@ export const tagTable = pgTable("tags", {
   name: text("name").notNull(),
 });
 
-export const moduleTable = pgTable("modules", {
-  id: text("id").primaryKey().notNull(),
-  courseId: text("course_id").references(() => courseTable.id),
-  title: text("title").notNull(),
-  description: text("description"),
-  order: integer("order").notNull(),
-  createdAt: timestamp("created_at", {
-    withTimezone: true,
-    mode: "date",
-  }).defaultNow(),
-  updatedAt: timestamp("updated_at", {
-    withTimezone: true,
-    mode: "date",
-  }).defaultNow(),
-});
-
 export const chapterTable = pgTable("chapters", {
   id: text("id").primaryKey().notNull(),
-  moduleId: text("module_id").references(() => moduleTable.id),
   courseId: text("course_id").references(() => courseTable.id),
   title: text("title").notNull(),
   description: text("description"),
@@ -346,6 +329,14 @@ export const coursesRelations = relations(courseTable, ({ one, many }) => ({
   images: one(imageTable, {
     fields: [courseTable.thumbnailUrl],
     references: [imageTable.id],
+  }),
+  chapters: many(chapterTable),
+}));
+
+export const chaptersRelations = relations(chapterTable, ({ one }) => ({
+  course: one(courseTable, {
+    fields: [chapterTable.courseId],
+    references: [courseTable.id],
   }),
 }));
 

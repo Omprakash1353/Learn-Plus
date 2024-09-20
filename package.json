@@ -48,7 +48,7 @@
     "embla-carousel": "^8.3.0",
     "embla-carousel-autoplay": "^8.3.0",
     "embla-carousel-react": "^8.3.0",
-    "framer-motion": "^11.5.4",
+    "framer-motion": "^11.5.5",
     "html-react-parser": "^5.1.16",
     "jsonwebtoken": "^9.0.2",
     "lucia": "^3.2.0",

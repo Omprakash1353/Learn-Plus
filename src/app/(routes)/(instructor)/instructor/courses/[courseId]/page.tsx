@@ -1,12 +1,18 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 
-import { db } from "@/lib/db";
-import { courseTable } from "@/lib/db/schema";
-import { validateRequest } from "@/lib/lucia";
-import { CourseEditForm } from "./_components/course-edit-form";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { db } from "@/lib/db";
+import { validateRequest } from "@/lib/lucia";
 import Link from "next/link";
+import { CourseEditForm } from "./_components/course-edit-form";
 
 export type courseType = {
   id: string;
@@ -31,9 +37,20 @@ export default async function CourseEditPage({
 
   return (
     <div className="mx-auto max-w-full px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mb-8 flex items-center justify-between">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/instructor/courses">Courses</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Edit Course</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      <div className="mb-8 mt-4 flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-          Create New Course
+          Edit Course
         </h1>
         <Button asChild className="self-end">
           <Link href={`/instructor/courses/${params.courseId}/sections`}>

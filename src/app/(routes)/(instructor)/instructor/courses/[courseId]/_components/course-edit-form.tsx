@@ -32,6 +32,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { courseByIdAction } from "../_action";
 import { ToastMessage } from "@/components/toast";
 import { queryClient } from "@/contexts/query-provider";
+import { Switch } from "@/components/ui/switch";
 
 export const courseEditSchema = z.object({
   title: z
@@ -314,7 +315,14 @@ export function CourseEditForm({
                             alt="Course preview"
                             className="mx-auto max-h-48 rounded-md object-cover shadow-md"
                           />
-                          <p className="text-sm text-muted-foreground">
+                          <p
+                            className="overflow-hidden text-ellipsis text-sm text-muted-foreground"
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {thumbnail?.name || courseData?.thumbnailUrl}
                           </p>
                           <Button
@@ -428,15 +436,11 @@ export function CourseEditForm({
                 <FormItem>
                   <FormControl>
                     <div className="flex items-center space-x-2">
-                      <label className="switch">
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={field.onChange}
-                        />
-                        <span className="slider" />
-                      </label>
-                      <span>Publish Course</span>
+                      <Switch id="isPublished"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                      <FormLabel htmlFor="isPublished">Publish Course</FormLabel>
                     </div>
                   </FormControl>
                 </FormItem>

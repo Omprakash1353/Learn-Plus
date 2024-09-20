@@ -37,7 +37,7 @@ export default function Editor({
 }: {
   placeholder: string;
   value: string;
-  disabled: boolean;
+  disabled?: boolean;
   onChange: (...event: any[]) => void;
 }) {
   return (

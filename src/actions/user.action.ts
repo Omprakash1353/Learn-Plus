@@ -83,7 +83,7 @@ export async function updateUserProfile(
     if (res[0].role === "INSTRUCTOR") {
       await db
         .update(instructorTable)
-        .set({ experience: values.experience })
+        .set({ experience: Number(values.experience) })
         .where(eq(instructorTable.id, res[0].id));
     }
 

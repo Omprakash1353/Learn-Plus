@@ -185,7 +185,12 @@ export function TagManage() {
           }
         >
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              disabled={isAdding}
+            >
               <PlusIcon className="mr-2 h-4 w-4" />
               {isAdding ? "Adding..." : "Add Tag"}
             </Button>
