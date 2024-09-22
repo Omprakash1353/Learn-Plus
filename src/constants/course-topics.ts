@@ -59,7 +59,8 @@ export const getCourseData = async () => {
   const cardsData: CardData<Tag>[] = [
     {
       id: "1",
-      img: "https://images.unsplash.com/photo-1719937206590-6cb10b099e0f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      thumbnailUrl:
+        "https://images.unsplash.com/photo-1719937206590-6cb10b099e0f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       title: "Complete React Developer in 2023",
       description:
         "Learn React, Hooks, Redux, React Routing, Animations, and more.",
@@ -71,7 +72,8 @@ export const getCourseData = async () => {
     },
     {
       id: "2",
-      img: "https://images.unsplash.com/photo-1719937050446-a121748d4ba0?q=80&w=2072&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      thumbnailUrl:
+        "https://images.unsplash.com/photo-1719937050446-a121748d4ba0?q=80&w=2072&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       title: "Advanced JavaScript Concepts",
       description:
         "Deep dive into JavaScript concepts including closures, prototypes, and async programming.",
@@ -83,7 +85,8 @@ export const getCourseData = async () => {
     },
     {
       id: "3",
-      img: "https://images.unsplash.com/photo-1725610588150-c4cd8b88affd?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      thumbnailUrl:
+        "https://images.unsplash.com/photo-1725610588150-c4cd8b88affd?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       title: "CSS Mastery: From Basics to Advanced",
       description:
         "Master CSS and responsive design techniques for modern web development.",
@@ -95,7 +98,8 @@ export const getCourseData = async () => {
     },
     {
       id: "4",
-      img: "https://images.unsplash.com/photo-1720048171731-15b3d9d5473f?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      thumbnailUrl:
+        "https://images.unsplash.com/photo-1720048171731-15b3d9d5473f?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       title: "Node.js: The Complete Guide",
       description:
         "Build scalable server-side applications with Node.js and Express.",
@@ -107,7 +111,8 @@ export const getCourseData = async () => {
     },
     {
       id: "5",
-      img: "https://images.unsplash.com/photo-1725603080015-7d16a86c45d9?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      thumbnailUrl:
+        "https://images.unsplash.com/photo-1725603080015-7d16a86c45d9?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
       title: "Full Stack Web Development Bootcamp",
       description:
         "Become a full stack developer with React, Node.js, and MongoDB.",

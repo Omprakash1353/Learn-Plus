@@ -52,50 +52,64 @@ export function CourseProgressCard(props: CourseProgressCardProps) {
 }
 
 type CourseEnrollmentCardProps = {
-  id: string | number;
-  img: string;
-  title: string;
-  description: string;
-  chapters: number;
-  duration: string;
-  price: number;
+  courseDetails: {
+    chapters: number;
+    tags: string[];
+    duration: number;
+    id: string;
+    title: string;
+    price: number | null;
+    thumbnailUrl: string | null;
+  };
 };
 
-export function CourseEnrollmentCard(props: CourseEnrollmentCardProps) {
+export function CourseEnrollmentCard({
+  courseDetails,
+}: CourseEnrollmentCardProps) {
   return (
-    <Link href={`/courses/${props.id}`}>
+    <Link href={`/courses/${courseDetails.id}`}>
       <Card className="w-full max-w-sm cursor-pointer transition-shadow duration-300 hover:shadow-lg">
         <div className="relative">
-          <Image
-            src={props.img}
-            alt={props.title}
-            width={400}
-            height={200}
-            className="h-[200px] w-full rounded-t-lg object-cover transition-all duration-300"
-            style={{ aspectRatio: "400/200", objectFit: "cover" }}
-            priority
-          />
+          {courseDetails.thumbnailUrl ? (
+            <Image
+              src={courseDetails.thumbnailUrl}
+              alt={courseDetails.title}
+              width={400}
+              height={200}
+              className="h-[200px] w-full rounded-t-lg object-cover transition-all duration-300"
+              style={{ aspectRatio: "400/200", objectFit: "cover" }}
+              priority
+            />
+          ) : (
+            <Image
+              src={"/placeholder.svg"}
+              alt={courseDetails.title}
+              width={400}
+              height={200}
+              className="h-[200px] w-full rounded-t-lg object-cover transition-all duration-300"
+            />
+          )}
           <Badge className="absolute right-4 top-4 rounded-full bg-primary px-3 py-1 text-sm font-medium text-primary-foreground">
-            $ {props.price}
+            $ {courseDetails.price}
           </Badge>
         </div>
         <CardContent className="space-y-4 p-6">
           <div>
-            <CardTitle className="line-clamp-1 text-lg font-semibold">
-              {props.title}
+            <CardTitle className="line-clamp-1 text-base font-semibold">
+              {courseDetails.title}
             </CardTitle>
-            <CardDescription className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-              {props.description}
-            </CardDescription>
+            {/* <CardDescription className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+              {"Lorem232123 34234"}
+            </CardDescription> */}
           </div>
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex items-center text-emerald-500">
               <Clock className="mr-1 h-4 w-4" />
-              <span>{props.duration} hr</span>
+              <span>{courseDetails.duration} hr</span>
             </div>
             <div className="flex items-center text-blue-600 duration-200 dark:text-blue-400">
               <BookOpen className="mr-1 h-4 w-4" />
-              <span>{props.chapters} chapters</span>
+              <span>{courseDetails.chapters} chapters</span>
             </div>
           </div>
         </CardContent>

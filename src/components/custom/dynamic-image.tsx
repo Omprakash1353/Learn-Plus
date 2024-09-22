@@ -29,6 +29,7 @@ export default async function DynamicImage({
     <div className={cn("relative")}>
       <Image
         src={img}
+        alt={props.alt || ""}
         {...props}
         placeholder="blur"
         blurDataURL={base64}

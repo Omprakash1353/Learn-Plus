@@ -1,3 +1,5 @@
+"use client";
+
 import { StarRating } from "@/components/custom/start-rating";
 import {
   Accordion,
@@ -7,6 +9,7 @@ import {
 } from "@/components/ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,33 +18,34 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { db } from "@/lib/db";
-import { courseTable } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { BookOpen, Clock, Users } from "lucide-react";
+import { courseContent } from "@/constants/course-topics";
+import { BookOpen, Clock, PlayCircle, Users } from "lucide-react";
 import Image from "next/image";
-import parse from "html-react-parser";
+import Link from "next/link";
+import { useState } from "react";
+import CourseOverview from "./course-overview";
 
-export default async function CourseDetailPage({
-  params,
-}: {
-  params: { courseId: string };
-}) {
-  const course = await db.query.courseTable.findFirst({
-    where: eq(courseTable.id, params.courseId),
-    with: {
-      enrollments: true,
-      instructor: {
-        with: {
-          user: true,
-        },
-      },
-    },
-  });
+type courseDetailType = {
+  status: "PUBLISHED" | "DRAFT";
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  rating: number | null;
+  title: string;
+  description: string | null;
+  discount: number | null;
+  price: number | null;
+  thumbnailUrl: string | null;
+  instructorId: string | null;
+};
 
-  console.log(course);
-
-  if (!course) return <div>Course Not Found</div>;
+export function CourseDetailsPage({ course }: { course: courseDetailType }) {
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const courseRating = 4.9;
+  const reviewCount = 200;
+  const price = 72.06;
+  const originalPrice = 90.08;
+  const discount = 20;
 
   return (
     <div className="mx-auto max-w-full p-4 md:p-6">
@@ -56,25 +60,21 @@ export default async function CourseDetailPage({
             </p>
           </div>
 
-          {course?.rating !== null && course.rating > 0 && (
-            <div className="mb-6 flex items-center space-x-4">
-              <StarRating readonly rating={course.rating} className="h-5 w-5" />
-              <span className="text-sm font-medium">
-                {course.rating} ({course.enrollments.length} reviews)
-              </span>
-              <Badge variant="secondary">Bestseller</Badge>
-            </div>
-          )}
+          <div className="mb-6 flex items-center space-x-4">
+            <StarRating readonly rating={courseRating} className="h-5 w-5" />
+            <span className="text-sm font-medium">
+              {course.rating} ({reviewCount} reviews)
+            </span>
+            <Badge variant="secondary">Bestseller</Badge>
+          </div>
 
-          <Card className="mb-8 border-none shadow-none outline-none">
+          <Card className="mb-8">
             <CardContent className="p-6">
               <div className="grid gap-4 sm:grid-cols-3">
-                {course.enrollments.length > 0 && (
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                    <span>{course.enrollments.length} students</span>
-                  </div>
-                )}
+                <div className="flex items-center space-x-2">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  <span>10,000+ students</span>
+                </div>
                 <div className="flex items-center space-x-2">
                   <Clock className="h-5 w-5 text-emerald-600" />
                   <span>50 hours of content</span>
@@ -92,11 +92,13 @@ export default async function CourseDetailPage({
               <CardHeader>
                 <CardTitle>Course Overview</CardTitle>
               </CardHeader>
-              {course?.description && (
-                <CardContent className="text-sm">
-                  <div>{parse(course?.description)}</div>
-                </CardContent>
-              )}
+              <CardContent className="text-sm">
+                <CardDescription>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: course.description! }}
+                  />
+                </CardDescription>
+              </CardContent>
             </Card>
 
             <Card className="border-none shadow-none outline-none">
@@ -106,24 +108,20 @@ export default async function CourseDetailPage({
               <CardContent>
                 <div className="flex items-start space-x-4">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage
-                      src={course.instructor?.user.profilePictureUrl || ""}
-                    />
-                    <AvatarFallback>
-                      {course.instructor?.user.name
-                        .substring(0, 2)
-                        .toUpperCase()}
-                    </AvatarFallback>
+                    <AvatarImage src="https://github.com/shadcn.png" />
+                    <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="text-lg font-semibold">
-                      {course.instructor?.user.name}
-                    </h3>
+                    <h3 className="text-lg font-semibold">Jane Doe</h3>
                     <p className="text-sm text-muted-foreground">
-                      {course?.instructor?.user?.expertize}
+                      Senior Web Developer & Educator
                     </p>
                     <p className="mt-2 text-sm">
-                      {course.instructor?.user.bio}
+                      Jane is a passionate web developer with over 10 years of
+                      industry experience. She has a talent for breaking down
+                      complex concepts into easy-to-understand lessons, making
+                      her courses accessible to beginners and valuable for
+                      experienced developers alike.
                     </p>
                   </div>
                 </div>
@@ -177,25 +175,15 @@ export default async function CourseDetailPage({
           <Card className="sticky top-6 border-none shadow-none outline-none">
             <CardContent className="p-6">
               <div className="aspect-video overflow-hidden rounded-lg">
-                {course?.thumbnailUrl ? (
-                  <Image
-                    src={course?.thumbnailUrl || ""}
-                    alt="Course Image"
-                    width={500}
-                    height={280}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <Image
-                    src={"/placeholder.svg"}
-                    alt={course.title}
-                    height={280}
-                    width={500}
-                    className="h-full w-full object-cover"
-                  />
-                )}
+                <Image
+                  src="https://images.unsplash.com/photo-1724757090342-59922ed19e39?q=80&w=2100&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                  alt="Course Image"
+                  width={500}
+                  height={280}
+                  className="h-full w-full object-cover"
+                />
               </div>
-              {/* {isEnrolled ? (
+              {isEnrolled ? (
                 <Button className="mt-6 w-full" asChild>
                   <Link href={`/courses/${course.id}/chapter-1`}>
                     <PlayCircle className="mr-2 h-4 w-4" />
@@ -224,12 +212,12 @@ export default async function CourseDetailPage({
                     Enroll Now
                   </Button>
                 </div>
-              )} */}
+              )}
             </CardContent>
           </Card>
 
           <ScrollArea className="max-h-[400px]">
-            {/* <CourseOverview data={courseContent} header="Chapters" /> */}
+            <CourseOverview data={courseContent} header="Chapters" />
           </ScrollArea>
         </div>
       </div>

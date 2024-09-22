@@ -1,11 +1,19 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Loader2, TagIcon } from "lucide-react";
+import {
+  Check,
+  Loader2,
+  TagIcon,
+  PlusCircle,
+  ChevronUp,
+  ChevronDown,
+  Trash2,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import * as z from "zod";
 
 import { editCourse } from "@/actions/course.action";
@@ -33,8 +41,11 @@ import { courseByIdAction } from "../_action";
 import { ToastMessage } from "@/components/toast";
 import { queryClient } from "@/contexts/query-provider";
 import { Switch } from "@/components/ui/switch";
+import Image from "next/image";
 
-export const courseEditSchema = z.object({
+const Editor = dynamic(() => import("@/components/editor"), { ssr: false });
+
+const courseEditSchema = z.object({
   title: z
     .string()
     .min(2, { message: "Title must be at least 2 characters." })
@@ -61,9 +72,15 @@ export const courseEditSchema = z.object({
       message: "Tags must be unique.",
     }),
   thumbnail: z.any().optional(),
+  chapters: z.array(
+    z.object({
+      id: z.string(),
+      title: z
+        .string()
+        .min(2, { message: "Section title must be at least 2 characters." }),
+    }),
+  ),
 });
-
-const Editor = dynamic(() => import("@/components/editor"), { ssr: false });
 
 export function CourseEditForm({
   courseId,
@@ -118,18 +135,24 @@ export function CourseEditForm({
       isPublished: courseData?.status === "PUBLISHED" ? true : false,
       thumbnail: courseData?.thumbnailUrl || "",
       tags: courseData?.tags || [],
+      chapters: courseData?.chapters || [],
     },
+  });
+
+  const { fields, append, remove, move } = useFieldArray({
+    control: form.control,
+    name: "sections",
   });
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (acceptedFiles) => {
       if (acceptedFiles[0]) {
         setThumbnail(acceptedFiles[0]);
-        form.setValue("thumbnail", acceptedFiles[0]); // Set thumbnail in form state
+        form.setValue("thumbnail", acceptedFiles[0]);
       }
     },
     accept: { "image/*": [] },
-    maxSize: 1024 * 1024, // 1MB
+    maxSize: 1024 * 1024,
     maxFiles: 1,
   });
 
@@ -144,6 +167,10 @@ export function CourseEditForm({
         changedData.price = values.price;
       if (JSON.stringify(values.tags) !== JSON.stringify(courseData?.tags))
         changedData.tags = values.tags;
+      if (
+        JSON.stringify(values.chapters) !== JSON.stringify(courseData?.chapters)
+      )
+        changedData.chapters = values.chapters;
 
       if (thumbnail) {
         changedData.thumbnail = thumbnail;
@@ -168,6 +195,8 @@ export function CourseEditForm({
             formData.append(key, thumbnail);
           } else if (key === "tags") {
             values.tags.forEach((tag) => formData.append("tag", tag.id));
+          } else if (key === "sections") {
+            formData.append("sections", JSON.stringify(value));
           } else {
             formData.append(key, value as string | Blob);
           }
@@ -180,7 +209,7 @@ export function CourseEditForm({
         setIsSubmitting(false);
       }
     },
-    [thumbnail, getChangedValues],
+    [thumbnail, getChangedValues, courseId, courseUpdateMutation],
   );
 
   useEffect(() => {
@@ -191,16 +220,17 @@ export function CourseEditForm({
       isPublished: courseData?.status === "PUBLISHED" ? true : false,
       thumbnail: courseData?.thumbnailUrl || "",
       tags: courseData?.tags || [],
+      chapters: courseData?.chapters || [],
     });
-  }, [courseData]);
+  }, [courseData, form]);
 
   const isFormDisabled = isLoading || isFetching || isSubmitting;
 
   if (isLoading || isFetching) {
     return (
-      <div className="grid grid-cols-5 items-start justify-start gap-x-8 gap-y-4">
-        <Skeleton className="col-span-3 h-[500px] w-full" />
-        <div className="col-span-2 grid gap-y-8">
+      <div className="grid grid-cols-1 items-start justify-start gap-x-8 gap-y-4 md:grid-cols-5">
+        <Skeleton className="col-span-1 h-[500px] w-full md:col-span-3" />
+        <div className="col-span-1 grid gap-y-8 md:col-span-2">
           <Skeleton className="h-[250px] w-full" />
           <Skeleton className="h-[150px] w-full" />
           <Skeleton className="h-12 w-full" />
@@ -216,8 +246,8 @@ export function CourseEditForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid grid-cols-5 gap-8">
-          <div className="col-span-3 space-y-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-5">
+          <div className="col-span-1 space-y-8 md:col-span-3">
             {/* Course Details */}
             <Card>
               <CardHeader>
@@ -281,9 +311,68 @@ export function CourseEditForm({
                 />
               </CardContent>
             </Card>
+
+            {/* Course Sections */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Course Sections</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {fields.map((field, index) => (
+                  <div
+                    key={field.id}
+                    className="mb-4 flex items-center space-x-2"
+                  >
+                    <Input
+                      {...form.register(`chapters.${index}.title`)}
+                      placeholder="Section title"
+                      className="flex-grow"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => index > 0 && move(index, index - 1)}
+                      disabled={index === 0}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        index < fields.length - 1 && move(index, index + 1)
+                      }
+                      disabled={index === fields.length - 1}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  onClick={() =>
+                    append({ id: Date.now().toString(), title: "" })
+                  }
+                  className="mt-4"
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Section
+                </Button>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="col-span-2 space-y-8">
+          <div className="col-span-1 space-y-8 md:col-span-2">
             {/* Course Thumbnail */}
             <FormField
               control={form.control}
@@ -306,23 +395,18 @@ export function CourseEditForm({
                       <input {...getInputProps()} />
                       {thumbnail || courseData?.thumbnailUrl ? (
                         <div className="space-y-2">
-                          <img
+                          <Image
                             src={
                               thumbnail
                                 ? URL.createObjectURL(thumbnail)
-                                : courseData?.thumbnailUrl || undefined
+                                : courseData?.thumbnailUrl || ""
                             }
+                            width={400}
+                            height={200}
                             alt="Course preview"
                             className="mx-auto max-h-48 rounded-md object-cover shadow-md"
                           />
-                          <p
-                            className="overflow-hidden text-ellipsis text-sm text-muted-foreground"
-                            style={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
+                          <p className="overflow-hidden text-ellipsis text-sm text-muted-foreground">
                             {thumbnail?.name || courseData?.thumbnailUrl}
                           </p>
                           <Button
@@ -341,8 +425,7 @@ export function CourseEditForm({
                         <div>
                           <TagIcon className="mx-auto h-12 w-12 text-muted-foreground" />
                           <p className="mt-2 font-medium">
-                            Drag &apos;n&apos; drop an image here, or click to
-                            select one
+                            Drag 'n' drop an image here, or click to select one
                           </p>
                           <p className="text-sm text-muted-foreground">
                             (Max size: 1MB)
@@ -429,23 +512,31 @@ export function CourseEditForm({
                 />
               </CardContent>
             </Card>
-            <FormField
-              control={form.control}
-              name="isPublished"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <div className="flex items-center space-x-2">
-                      <Switch id="isPublished"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                      <FormLabel htmlFor="isPublished">Publish Course</FormLabel>
-                    </div>
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+
+            {/* Publish Switch */}
+            {fields.length > 0 && (
+              <FormField
+                control={form.control}
+                name="isPublished"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="isPublished"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                        <FormLabel htmlFor="isPublished">
+                          Publish Course
+                        </FormLabel>
+                      </div>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            )}
+
             <Button type="submit" className="w-full" disabled={isFormDisabled}>
               {isSubmitting ? (
                 <>

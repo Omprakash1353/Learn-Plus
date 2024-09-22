@@ -29,6 +29,12 @@ export const courseByIdAction = async (courseId: string) => {
             secure_url: true,
           },
         },
+        chapters: {
+          columns: {
+            id: true,
+            title: true,
+          },
+        },
       },
       columns: {
         id: true,
@@ -49,6 +55,7 @@ export const courseByIdAction = async (courseId: string) => {
       thumbnailUrl: course?.images?.secure_url,
       status: course?.status,
       tags: course?.tags.map((tag) => tag.tag),
+      chapters: course?.chapters,
     };
 
     return {

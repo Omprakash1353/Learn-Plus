@@ -52,11 +52,6 @@ export default async function CourseEditPage({
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
           Edit Course
         </h1>
-        <Button asChild className="self-end">
-          <Link href={`/instructor/courses/${params.courseId}/sections`}>
-            Add Modules and Sections
-          </Link>
-        </Button>
       </div>
       <CourseEditForm courseId={params.courseId} tags={tags} />
     </div>

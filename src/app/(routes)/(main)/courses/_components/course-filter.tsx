@@ -6,15 +6,25 @@ import { CourseEnrollmentCard } from "@/components/course-progress-card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { CardData, Tag } from "@/types/type";
+import { Tag } from "@/types/type";
+
+export type courseCardProps = {
+  chapters: number;
+  tags: string[];
+  duration: number;
+  id: string;
+  title: string;
+  price: number | null;
+  thumbnailUrl: string | null;
+}[];
 
 type PageProps = {
-  tags: Tag[];
-  cardsData: CardData<Tag>[];
+  tags: string[];
+  cardsData: courseCardProps;
 };
 
 export function CoursePage({ tags, cardsData }: PageProps) {
-  const [selectedTag, setSelectedTag] = useState<Tag>("all");
+  const [selectedTag, setSelectedTag] = useState<string>("all");
 
   const filteredCards =
     selectedTag === "all"
@@ -50,7 +60,7 @@ export function CoursePage({ tags, cardsData }: PageProps) {
         <main className="flex h-auto w-full flex-grow flex-col items-center justify-start gap-10">
           <div className="mx-auto my-5 grid w-full grid-cols-1 gap-x-5 gap-y-12 px-6 md:grid-cols-2 md:px-8 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {filteredCards.map((card, index) => (
-              <CourseEnrollmentCard key={index} {...card} />
+              <CourseEnrollmentCard key={index} courseDetails={card} />
             ))}
           </div>
         </main>

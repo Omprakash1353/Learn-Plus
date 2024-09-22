@@ -2,7 +2,7 @@ export type Tag = string;
 
 export type CardData<T extends Tag> = {
   id: string;
-  img: string;
+  thumbnailUrl: string;
   title: string;
   description: string;
   chapters: number;
@@ -30,3 +30,4 @@ export type Module = {
   title: string;
   sections: Section[];
 };
+

@@ -205,8 +205,38 @@ export const chapterTable = pgTable("chapters", {
   description: text("description"),
   order: integer("order").notNull(),
   isFree: boolean("is_free").default(false),
-  thumbnailUrl: text("thumbnail_url"),
   duration: real("duration").default(0),
+  videoId: text("video_id").references(() => videoTable.id),
+  status: courseStatusEnums("status").default("DRAFT").notNull(),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "date",
+  }).defaultNow(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "date",
+  }).defaultNow(),
+});
+
+export const videoTable = pgTable("mux_data", {
+  id: text("id").primaryKey().notNull(),
+  asset_id: text("asset_id").notNull(),
+  playbackId: text("playback_id"),
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "date",
+  }).defaultNow(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "date",
+  }).defaultNow(),
+});
+
+export const userProgressTable = pgTable("user_progress", {
+  id: text("id").primaryKey().notNull(),
+  userId: text("user_id").references(() => userTable.id),
+  chapterId: text("chapter_id").references(() => chapterTable.id),
+  isCompleted: boolean("is_completed").default(false),
   createdAt: timestamp("created_at", {
     withTimezone: true,
     mode: "date",
@@ -289,6 +319,10 @@ export const usersRelations = relations(userTable, ({ one, many }) => ({
     fields: [userTable.profilePictureUrl],
     references: [imageTable.id],
   }),
+  progress: one(userProgressTable, {
+    fields: [userTable.id],
+    references: [userProgressTable.userId],
+  }),
 }));
 
 export const oauthAccountsRelations = relations(
@@ -338,6 +372,10 @@ export const chaptersRelations = relations(chapterTable, ({ one }) => ({
     fields: [chapterTable.courseId],
     references: [courseTable.id],
   }),
+  video: one(videoTable, {
+    fields: [chapterTable.videoId],
+    references: [videoTable.id],
+  }),
 }));
 
 export const tagsRelations = relations(tagTable, ({ many }) => ({
@@ -376,3 +414,24 @@ export const imageRelations = relations(imageTable, ({ one }) => ({
     references: [courseTable.thumbnailUrl],
   }),
 }));
+
+export const videoRelations = relations(videoTable, ({ one }) => ({
+  chapter: one(chapterTable, {
+    fields: [videoTable.id],
+    references: [chapterTable.videoId],
+  }),
+}));
+
+export const userProgressRelations = relations(
+  userProgressTable,
+  ({ one }) => ({
+    user: one(userTable, {
+      fields: [userProgressTable.userId],
+      references: [userTable.id],
+    }),
+    chapter: one(chapterTable, {
+      fields: [userProgressTable.chapterId],
+      references: [chapterTable.id],
+    }),
+  }),
+);

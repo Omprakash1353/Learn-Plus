@@ -7,6 +7,7 @@ import { validateRequest } from "@/lib/lucia";
 import cloudinaryService from "@/service/cloudinary";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { generateId } from "lucia";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 export const createCourse = async (data: { title: string }) => {
@@ -211,11 +212,13 @@ export const editCourse = async (formData: FormData) => {
 
         const course = await tx
           .update(courseTable)
-          .set(validCourseData)
+          .set({ ...validCourseData, updatedAt: new Date() })
           .where(eq(courseTable.id, courseId))
           .returning({ id: courseTable.id });
 
         console.log(course);
+        revalidatePath(`/courses/${course[0].id}`, "page");
+        revalidatePath(`/instructor/courses`, "page");
 
         if (!course) {
           console.error("Failed to update course");
