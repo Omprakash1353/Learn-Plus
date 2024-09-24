@@ -1,25 +1,19 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Check,
-  Loader2,
-  TagIcon,
-  PlusCircle,
-  ChevronUp,
-  ChevronDown,
-  Trash2,
-} from "lucide-react";
-import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
-import { useDropzone } from "react-dropzone";
-import { useForm, useFieldArray } from "react-hook-form";
-import * as z from "zod";
-
 import { editCourse } from "@/actions/course.action";
+import { ToastMessage } from "@/components/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -36,67 +30,72 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { courseByIdAction } from "../_action";
-import { ToastMessage } from "@/components/toast";
 import { queryClient } from "@/contexts/query-provider";
-import { Switch } from "@/components/ui/switch";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Check, GripVertical, Pen, Plus, TagIcon, Trash2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { courseByIdAction } from "../_action";
 
 const Editor = dynamic(() => import("@/components/editor"), { ssr: false });
 
-const courseEditSchema = z.object({
-  title: z
-    .string()
-    .min(2, { message: "Title must be at least 2 characters." })
-    .refine((val) => val.trim() !== "", { message: "Title cannot be empty." }),
+const courseInfoSchema = z.object({
+  title: z.string().min(2, { message: "Title must be at least 2 characters." }),
   description: z
     .string()
-    .min(10, { message: "Description must be at least 10 characters." })
-    .refine((val) => val.trim() !== "", {
-      message: "Description cannot be empty.",
-    }),
-  price: z
-    .string()
-    .refine((val) => !isNaN(Number(val)), {
-      message: "Price must be a valid number.",
-    })
-    .refine((val) => Number(val) >= 0, {
-      message: "Price must be greater than 0.",
-    }),
-  isPublished: z.boolean().default(false),
-  tags: z
-    .array(z.object({ id: z.string(), name: z.string() }))
-    .min(0, { message: "Please select at least one tag." })
-    .refine((val) => new Set(val).size === val.length, {
-      message: "Tags must be unique.",
-    }),
+    .min(10, { message: "Description must be at least 10 characters." }),
+  price: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
+    message: "Price must be a valid number greater than or equal to 0.",
+  }),
+  tags: z.array(z.object({ id: z.string(), name: z.string() })),
   thumbnail: z.any().optional(),
-  chapters: z.array(
-    z.object({
-      id: z.string(),
-      title: z
-        .string()
-        .min(2, { message: "Section title must be at least 2 characters." }),
-    }),
-  ),
 });
 
-export function CourseEditForm({
-  courseId,
-  tags: predefinedTags,
-}: {
+const chapterSchema = z.object({
+  id: z.string(),
+  title: z
+    .string()
+    .min(2, { message: "Chapter title must be at least 2 characters." }),
+});
+
+const chaptersSchema = z.array(chapterSchema);
+
+type Chapter = z.infer<typeof chapterSchema>;
+
+type CourseEditProps = {
   courseId: string;
   tags: { id: string; name: string }[];
-}) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+};
+
+export function CourseEditForm({ courseId, tags }: CourseEditProps) {
   const [thumbnail, setThumbnail] = useState<File | null>(null);
 
   const {
     data: courseData,
     isLoading,
-    isFetching,
     isError,
+    isFetching,
     error,
   } = useQuery({
     queryKey: [`course-${courseId}`],
@@ -106,7 +105,6 @@ export function CourseEditForm({
     },
     enabled: !!courseId,
     refetchOnWindowFocus: false,
-    retry: false,
     staleTime: 1000 * 60 * 5,
   });
 
@@ -125,30 +123,11 @@ export function CourseEditForm({
     },
   });
 
-  const form = useForm<z.infer<typeof courseEditSchema>>({
-    resolver: zodResolver(courseEditSchema),
-    mode: "onChange",
-    defaultValues: {
-      title: courseData?.title || "",
-      description: courseData?.description || "",
-      price: courseData?.price?.toString() || "0",
-      isPublished: courseData?.status === "PUBLISHED" ? true : false,
-      thumbnail: courseData?.thumbnailUrl || "",
-      tags: courseData?.tags || [],
-      chapters: courseData?.chapters || [],
-    },
-  });
-
-  const { fields, append, remove, move } = useFieldArray({
-    control: form.control,
-    name: "sections",
-  });
-
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (acceptedFiles) => {
       if (acceptedFiles[0]) {
         setThumbnail(acceptedFiles[0]);
-        form.setValue("thumbnail", acceptedFiles[0]);
+        courseInfoForm.setValue("thumbnail", acceptedFiles[0]);
       }
     },
     accept: { "image/*": [] },
@@ -156,85 +135,51 @@ export function CourseEditForm({
     maxFiles: 1,
   });
 
-  const getChangedValues = useCallback(
-    (values: z.infer<typeof courseEditSchema>) => {
-      const changedData: Partial<z.infer<typeof courseEditSchema>> = {};
-
-      if (values.title !== courseData?.title) changedData.title = values.title;
-      if (values.description !== courseData?.description)
-        changedData.description = values.description;
-      if (values.price !== courseData?.price?.toString())
-        changedData.price = values.price;
-      if (JSON.stringify(values.tags) !== JSON.stringify(courseData?.tags))
-        changedData.tags = values.tags;
-      if (
-        JSON.stringify(values.chapters) !== JSON.stringify(courseData?.chapters)
-      )
-        changedData.chapters = values.chapters;
-
-      if (thumbnail) {
-        changedData.thumbnail = thumbnail;
-      }
-
-      return changedData;
+  const courseInfoForm = useForm<z.infer<typeof courseInfoSchema>>({
+    resolver: zodResolver(courseInfoSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      price: "0",
+      tags: [],
+      thumbnail: undefined,
     },
-    [thumbnail, courseData],
-  );
-
-  const onSubmit = useCallback(
-    async (values: z.infer<typeof courseEditSchema>) => {
-      try {
-        setIsSubmitting(true);
-        const changedValues = getChangedValues(values);
-
-        const formData = new FormData();
-        formData.set("id", courseId);
-
-        Object.entries(changedValues).forEach(([key, value]) => {
-          if (key === "thumbnail" && thumbnail) {
-            formData.append(key, thumbnail);
-          } else if (key === "tags") {
-            values.tags.forEach((tag) => formData.append("tag", tag.id));
-          } else if (key === "sections") {
-            formData.append("sections", JSON.stringify(value));
-          } else {
-            formData.append(key, value as string | Blob);
-          }
-        });
-
-        await courseUpdateMutation(formData);
-      } catch (error) {
-        console.error("Submission error:", error);
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [thumbnail, getChangedValues, courseId, courseUpdateMutation],
-  );
+  });
 
   useEffect(() => {
-    form.reset({
-      title: courseData?.title || "",
-      description: courseData?.description || "",
-      price: courseData?.price?.toString() || "0",
-      isPublished: courseData?.status === "PUBLISHED" ? true : false,
-      thumbnail: courseData?.thumbnailUrl || "",
-      tags: courseData?.tags || [],
-      chapters: courseData?.chapters || [],
-    });
-  }, [courseData, form]);
+    if (courseData) {
+      courseInfoForm.reset({
+        title: courseData.title || "",
+        description: courseData.description || "",
+        price: courseData.price?.toString() || "0",
+        tags: courseData.tags || [],
+        thumbnail: courseData.thumbnailUrl || "",
+      });
+    }
+  }, [courseData, courseInfoForm]);
 
-  const isFormDisabled = isLoading || isFetching || isSubmitting;
+  const onCourseInfoSubmit = async (
+    values: z.infer<typeof courseInfoSchema>,
+  ) => {
+    const formData = new FormData();
+    formData.set("id", courseId);
+    Object.entries(values).forEach(([key, value]) => {
+      if (key === "thumbnail" && thumbnail) {
+        formData.append(key, thumbnail);
+      } else if (key === "tags") {
+        values.tags.forEach((tag) => formData.append("tag", tag.id));
+      } else {
+        formData.append(key, value as string | Blob);
+      }
+    });
+    await courseUpdateMutation(formData);
+  };
 
   if (isLoading || isFetching) {
     return (
-      <div className="grid grid-cols-1 items-start justify-start gap-x-8 gap-y-4 md:grid-cols-5">
-        <Skeleton className="col-span-1 h-[500px] w-full md:col-span-3" />
-        <div className="col-span-1 grid gap-y-8 md:col-span-2">
-          <Skeleton className="h-[250px] w-full" />
-          <Skeleton className="h-[150px] w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <Skeleton className="h-[600px] w-full" />
+        <Skeleton className="h-[600px] w-full" />
       </div>
     );
   }
@@ -244,153 +189,140 @@ export function CourseEditForm({
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-5">
-          <div className="col-span-1 space-y-8 md:col-span-3">
-            {/* Course Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Course Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Course Title</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter course title"
-                          {...field}
-                          disabled={isFormDisabled}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Course Description</FormLabel>
-                      <FormControl>
-                        <Editor
-                          value={field.value}
-                          onChange={field.onChange}
-                          placeholder="Write a compelling description of your course..."
-                          disabled={isFormDisabled}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price (USD)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Enter price"
-                          {...field}
-                          disabled={isFormDisabled}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Course Sections */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Course Sections</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="mb-4 flex items-center space-x-2"
-                  >
-                    <Input
-                      {...form.register(`chapters.${index}.title`)}
-                      placeholder="Section title"
-                      className="flex-grow"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => index > 0 && move(index, index - 1)}
-                      disabled={index === 0}
-                    >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() =>
-                        index < fields.length - 1 && move(index, index + 1)
-                      }
-                      disabled={index === fields.length - 1}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  onClick={() =>
-                    append({ id: Date.now().toString(), title: "" })
-                  }
-                  className="mt-4"
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Section
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="col-span-1 space-y-8 md:col-span-2">
-            {/* Course Thumbnail */}
-            <FormField
-              control={form.control}
-              name="thumbnail"
-              render={({ field }) => (
-                <Card>
-                  <CardHeader>
-                    <FormLabel>Course Thumbnail</FormLabel>
+    <div className="space-y-8">
+      <Form {...courseInfoForm}>
+        <form
+          onSubmit={courseInfoForm.handleSubmit(onCourseInfoSubmit)}
+          className="space-y-8"
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Course Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={courseInfoForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter course title" {...field} />
+                    </FormControl>
                     <FormMessage />
-                  </CardHeader>
-                  <CardContent>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={courseInfoForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course Description</FormLabel>
+                    <FormControl>
+                      <Editor
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Write a compelling description of your course..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={courseInfoForm.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Price (USD)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Enter price"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={courseInfoForm.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course Tags</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
+                          {field.value.length > 0
+                            ? `${field.value.length} tag(s) selected`
+                            : "Select Tags"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent>
+                        <ScrollArea className="h-48 p-2">
+                          <div className="space-y-2">
+                            {tags.map((tag) => (
+                              <div
+                                key={tag.id}
+                                className="flex items-center space-x-2"
+                              >
+                                <Badge
+                                  variant={
+                                    field.value.some(
+                                      (selectedTag) =>
+                                        selectedTag.id === tag.id,
+                                    )
+                                      ? "default"
+                                      : "outline"
+                                  }
+                                  onClick={() => {
+                                    const tagExists = field.value.some(
+                                      (selectedTag) =>
+                                        selectedTag.id === tag.id,
+                                    );
+                                    const newTags = tagExists
+                                      ? field.value.filter(
+                                          (t) => t.id !== tag.id,
+                                        )
+                                      : [...field.value, tag];
+                                    field.onChange(newTags);
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  {tag.name}
+                                  {field.value.some(
+                                    (selectedTag) => selectedTag.id === tag.id,
+                                  ) && <Check className="ml-2 h-3 w-3" />}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={courseInfoForm.control}
+                name="thumbnail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course Thumbnail</FormLabel>
                     <div
                       {...getRootProps()}
                       className={`cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
                         isDragActive
                           ? "border-primary bg-primary/10"
                           : "border-muted"
-                      } ${isFormDisabled ? "pointer-events-none opacity-50" : ""}`}
+                      }`}
                     >
                       <input {...getInputProps()} />
                       {thumbnail || courseData?.thumbnailUrl ? (
@@ -415,7 +347,7 @@ export function CourseEditForm({
                             size="sm"
                             onClick={() => {
                               setThumbnail(null);
-                              form.setValue("thumbnail", "");
+                              field.onChange("");
                             }}
                           >
                             Remove Image
@@ -433,123 +365,252 @@ export function CourseEditForm({
                         </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-            />
-
-            {/* Course Tags */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Course Tags</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FormField
-                  control={form.control}
-                  name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-between"
-                            disabled={isFormDisabled}
-                          >
-                            {field.value.length > 0
-                              ? `${field.value.length} tag(s) selected`
-                              : "Select Tags"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent>
-                          <ScrollArea className="h-48 p-2">
-                            <div className="space-y-2">
-                              {predefinedTags.map((tag) => (
-                                <div
-                                  key={tag.id}
-                                  className="flex items-center space-x-2"
-                                >
-                                  <Badge
-                                    variant={
-                                      field.value.some(
-                                        (selectedTag) =>
-                                          selectedTag.id === tag.id,
-                                      )
-                                        ? "default"
-                                        : "outline"
-                                    }
-                                    onClick={() => {
-                                      if (isFormDisabled) return;
-                                      const tagExists = field.value.some(
-                                        (selectedTag) =>
-                                          selectedTag.id === tag.id,
-                                      );
-
-                                      const newTags = tagExists
-                                        ? field.value.filter(
-                                            (t) => t.id !== tag.id,
-                                          )
-                                        : [...field.value, tag];
-
-                                      field.onChange(newTags);
-                                    }}
-                                    className={`cursor-pointer ${isFormDisabled ? "opacity-50" : ""}`}
-                                  >
-                                    {tag.name}
-                                    {field.value.some(
-                                      (selectedTag) =>
-                                        selectedTag.id === tag.id,
-                                    ) && <Check className="ml-2 h-3 w-3" />}
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </PopoverContent>
-                      </Popover>
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Publish Switch */}
-            {fields.length > 0 && (
-              <FormField
-                control={form.control}
-                name="isPublished"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="isPublished"
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                        <FormLabel htmlFor="isPublished">
-                          Publish Course
-                        </FormLabel>
-                      </div>
-                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
+            </CardContent>
+          </Card>
+          <Button type="submit">Save Course Information</Button>
+        </form>
+      </Form>
 
-            <Button type="submit" className="w-full" disabled={isFormDisabled}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                "Update Course"
-              )}
-            </Button>
-          </div>
-        </div>
-      </form>
-    </Form>
+      <Chapters courseId={courseId} initChapters={courseData?.chapters || []} />
+    </div>
+  );
+}
+
+function Chapters({
+  courseId,
+  initChapters = [],
+}: {
+  courseId: string;
+  initChapters: {
+    id: string;
+    title: string;
+  }[];
+}) {
+  console.debug(initChapters);
+  const [hasChapterChanges, setHasChapterChanges] = useState(false);
+  const [chapters, setChapters] = useState<Chapter[]>(initChapters);
+  const [isCreateChapterOpen, setIsCreateChapterOpen] = useState(false);
+
+  // const { mutateAsync: publishCourseMutation } = useMutation({
+  //   mutationFn: async () => {
+  //     // const res = await publishCourse(courseId);
+  //     // 5 seconds wait
+  //     await new Promise((resolve) => setTimeout(resolve, 5000));
+  //     return {
+  //       success: true,
+  //       message: "Course published successfully",
+  //       error: "",
+  //     };
+  //   },
+  //   onSuccess: (data) => {
+  //     queryClient.invalidateQueries({ queryKey: [`course-${courseId}`] });
+  //     if (data.success) {
+  //       ToastMessage({ message: data.message, type: "success" });
+  //     } else {
+  //       ToastMessage({ message: data.error || data.message, type: "error" });
+  //     }
+  //   },
+  // });
+
+  const onChaptersSave = async (updatedChapters: Chapter[]) => {
+    console.debug(updatedChapters);
+    // const formData = new FormData();
+    // formData.set("id", courseId);
+    // formData.append("chapters", JSON.stringify(updatedChapters));
+    // // await courseUpdateMutation(formData);
+    // setHasChapterChanges(false);
+  };
+
+  const onPublish = async () => {
+    // await publishCourseMutation();
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Chapters</CardTitle>
+          <Dialog
+            open={isCreateChapterOpen}
+            onOpenChange={setIsCreateChapterOpen}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Chapter
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Chapter</DialogTitle>
+                <DialogDescription>
+                  Enter the title for the new chapter.
+                </DialogDescription>
+              </DialogHeader>
+              <Input placeholder="Chapter title" id="chapterTitle" />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setIsCreateChapterOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    const title = (
+                      document.getElementById(
+                        "chapterTitle",
+                      ) as HTMLInputElement
+                    ).value;
+                    if (title) {
+                      setChapters([
+                        ...chapters,
+                        { id: Date.now().toString(), title },
+                      ]);
+                      setHasChapterChanges(true);
+                    }
+                    setIsCreateChapterOpen(false);
+                  }}
+                >
+                  Add Chapter
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          <DndContext
+            sensors={useSensors(
+              useSensor(PointerSensor),
+              useSensor(KeyboardSensor, {
+                coordinateGetter: sortableKeyboardCoordinates,
+              }),
+            )}
+            collisionDetection={closestCenter}
+            onDragEnd={(event) => {
+              const { active, over } = event;
+              if (over && active.id !== over.id) {
+                setChapters((items) => {
+                  const oldIndex = items.findIndex(
+                    (item) => item.id === active.id,
+                  );
+                  const newIndex = items.findIndex(
+                    (item) => item.id === over.id,
+                  );
+                  return arrayMove(items, oldIndex, newIndex);
+                });
+                setHasChapterChanges(true);
+              }
+            }}
+          >
+            <SortableContext
+              items={chapters}
+              strategy={verticalListSortingStrategy}
+            >
+              {chapters.map((chapter, index) => (
+                <SortableChapterItem
+                  key={index}
+                  chapter={chapter}
+                  onEdit={(id, newTitle) => {
+                    setChapters(
+                      chapters.map((ch) =>
+                        ch.id === id ? { ...ch, title: newTitle } : ch,
+                      ),
+                    );
+                    setHasChapterChanges(true);
+                  }}
+                  onDelete={(id) => {
+                    setChapters(chapters.filter((ch) => ch.id !== id));
+                    setHasChapterChanges(true);
+                  }}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+          {hasChapterChanges && (
+            <div className="mt-4 flex justify-end">
+              <Button onClick={() => onChaptersSave(chapters)}>
+                Save Chapter Changes
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      {chapters.length > 0 && (
+        <Button onClick={onPublish} className="w-full">
+          Publish Course
+        </Button>
+      )}
+    </>
+  );
+}
+
+function SortableChapterItem({
+  chapter,
+  onEdit,
+  onDelete,
+}: {
+  chapter: Chapter;
+  onEdit: (id: string, newTitle: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: chapter.id });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(chapter.title);
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const handleSaveEdit = () => {
+    onEdit(chapter.id, editedTitle);
+    setIsEditing(false);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="mb-2 flex items-center space-x-2 rounded-md border bg-card p-2"
+    >
+      <div {...attributes} {...listeners}>
+        <GripVertical className="h-5 w-5 cursor-move text-muted-foreground" />
+      </div>
+      {isEditing ? (
+        <Input
+          value={editedTitle}
+          onChange={(e) => setEditedTitle(e.target.value)}
+          onBlur={handleSaveEdit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSaveEdit();
+            }
+          }}
+          className="flex-grow"
+          autoFocus
+        />
+      ) : (
+        <span className="flex-grow">{chapter.title}</span>
+      )}
+      {isEditing ? (
+        <Button size="icon" variant="ghost" onClick={handleSaveEdit}>
+          <Check className="h-4 w-4" />
+        </Button>
+      ) : (
+        <Button size="icon" variant="ghost" onClick={() => setIsEditing(true)}>
+          <Pen className="h-4 w-4" />
+        </Button>
+      )}
+      <Button size="icon" variant="ghost" onClick={() => onDelete(chapter.id)}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
   );
 }

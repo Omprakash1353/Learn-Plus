@@ -57,8 +57,8 @@ export function Sidebar({
           pathname.startsWith("/admin/courses/"),
       },
       {
-        name: "FAQs",
-        href: "/admin/FAQ",
+        name: "Problems",
+        href: "/admin/problems",
         icon: <TableOfContents size={20} />,
         isActive: (pathname) => pathname === "/admin/FAQ",
       },

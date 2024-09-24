@@ -12,11 +12,12 @@ import {
 import { db } from "@/lib/db";
 import { courseTable } from "@/lib/db/schema";
 import { validateRequest } from "@/lib/lucia";
+import { ChapterEditForm } from "./_components/chapter-edit-form";
 
 export default async function SectionPage({
   params,
 }: {
-  params: { courseId: string };
+  params: { courseId: string; chapterId: string };
 }) {
   const { user } = await validateRequest();
   if (!user || user.role !== "INSTRUCTOR") return redirect("/");
@@ -37,21 +38,25 @@ export default async function SectionPage({
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href={`/instructor/${params.courseId}`}>
+            <BreadcrumbLink href={`/instructor/courses/${params.courseId}`}>
               {courseName?.title}
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>Modules & Sections</BreadcrumbPage>
+            <BreadcrumbPage>Edit Chapter</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
       <div className="mb-8 mt-4">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-          Edit Modules & Sections
+          Edit Chapter
         </h1>
       </div>
+      <ChapterEditForm
+        chapterId={params.chapterId}
+        courseId={params.courseId}
+      />
     </div>
   );
 }
