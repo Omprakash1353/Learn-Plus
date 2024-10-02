@@ -59,7 +59,7 @@ export function Sidebar({
         name: "Problems",
         href: "/admin/problems",
         icon: <TableOfContents size={20} />,
-        isActive: (pathname) => pathname === "/admin/FAQ",
+        isActive: (pathname) => pathname === "/admin/problems",
       },
       {
         name: "Feedbacks",

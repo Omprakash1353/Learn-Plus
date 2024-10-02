@@ -86,12 +86,11 @@ export function ProblemTable() {
       <CardHeader>
         <div className="flex items-center justify-between space-x-4">
           <div>
-            <CardTitle className="mb-1">Your Courses</CardTitle>
+            <CardTitle className="mb-1">User Problems</CardTitle>
             <CardDescription className="text-sm text-muted-foreground">
-              Manage and monitor your course catalog
+              Manage and monitor users problems
             </CardDescription>
           </div>
-          <CourseCreate />
         </div>
       </CardHeader>
       <CardContent>
@@ -129,17 +128,17 @@ export function ProblemTable() {
                   <Badge
                     variant={problem.solved === true ? "default" : "secondary"}
                   >
-                    {problem.solved}
+                    {problem.solved ? "RESOLVED" : "PENDING"}
                   </Badge>
-                </TableCell>
-                <TableCell>
-                  {problem?.createdAt
-                    ? new Date(problem?.createdAt)?.toLocaleDateString()
-                    : ""}
                 </TableCell>
                 <TableCell>
                   {problem?.resolvedAt
                     ? new Date(problem?.resolvedAt)?.toLocaleDateString()
+                    : ""}
+                </TableCell>
+                <TableCell>
+                  {problem?.createdAt
+                    ? new Date(problem?.createdAt)?.toLocaleDateString()
                     : ""}
                 </TableCell>
               </TableRow>
