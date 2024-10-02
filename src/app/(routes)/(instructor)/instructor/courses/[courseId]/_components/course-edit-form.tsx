@@ -780,7 +780,7 @@ function SortableChapterItem({
           <DialogDescription>
             Are you sure you want to delete chapter{" "}
             <span className="font-bold">{chapter.title}</span>? This action
-            can't be undone.
+            can&apos;t be undone.
           </DialogDescription>
           <DialogFooter>
             <DialogClose asChild>
