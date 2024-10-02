@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import { imageTable, oauthAccountTable, userTable } from "@/lib/db/schema";
 import { lucia } from "@/lib/lucia";
 import { google } from "@/lib/lucia/oauth";
-import { generateId } from "lucia";
 
 interface GoogleUser {
   id: string;

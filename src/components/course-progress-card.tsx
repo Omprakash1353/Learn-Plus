@@ -5,34 +5,33 @@ import Link from "next/link";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardTitle,
+  CardTitle
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "./ui/badge";
 
 type CourseProgressCardProps = {
-  id: string;
-  img: string;
-  title: string;
-  description: string;
+  progressPercentage: number;
+  id: string | null;
+  thumbnailUrl: string | null | undefined;
+  title: string | undefined;
 };
 
 export function CourseProgressCard(props: CourseProgressCardProps) {
   return (
-    <Link href={"/courses/12345"}>
+    <Link href={`/courses/${props?.id}`}>
       <Card className="w-full max-w-sm">
         <div className="relative h-[200px]">
           <Image
-            src={props.img}
-            alt={props.title}
+            src={props?.thumbnailUrl || ""}
+            alt={props?.title || ""}
             width="400"
             height="200"
             className="h-full w-full rounded-t-lg object-cover"
             style={{ aspectRatio: "400/200", objectFit: "cover" }}
           />
           <Badge className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
-            75% Complete
+            {props.progressPercentage}% Complete
           </Badge>
         </div>
         <CardContent className="space-y-4 p-6">
@@ -40,11 +39,12 @@ export function CourseProgressCard(props: CourseProgressCardProps) {
             <CardTitle className="line-clamp-1 text-lg font-semibold">
               {props.title}
             </CardTitle>
-            <CardDescription className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-              {props.description}
-            </CardDescription>
           </div>
-          <Progress value={75} aria-label="75% complete" className="" />
+          <Progress
+            value={props.progressPercentage}
+            aria-label={`${props.progressPercentage}% complete`}
+            className=""
+          />
         </CardContent>
       </Card>
     </Link>

@@ -1,22 +1,21 @@
 "use client";
 
 import {
-  LayoutDashboard,
-  Compass,
-  Radio,
   ChartNoAxesCombined,
-  TableOfContents,
+  Compass,
+  LayoutDashboard,
   MessagesSquare,
-  User,
-  Ticket,
+  TableOfContents,
   TagsIcon,
+  Ticket,
+  User
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 type NavItem = {
   name: string;
@@ -121,12 +120,6 @@ export function Sidebar({
         href: "/courses",
         icon: <Compass size={20} />,
         isActive: (pathname) => pathname.startsWith("/courses"),
-      },
-      {
-        name: "Live",
-        href: "/live",
-        icon: <Radio size={20} />,
-        isActive: (pathname) => pathname === "/live",
       },
     ],
   };

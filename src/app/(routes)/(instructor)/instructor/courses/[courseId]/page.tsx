@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 import {
@@ -8,11 +9,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
+import { courseTable } from "@/lib/db/schema";
 import { validateRequest } from "@/lib/lucia";
-import Link from "next/link";
 import { CourseEditForm } from "./_components/course-edit-form";
+import { PublishCourse } from "./_components/publish-course";
 
 export type courseType = {
   id: string;
@@ -33,6 +34,15 @@ export default async function CourseEditPage({
     return redirect("/");
   }
 
+  const course = await db.query.courseTable.findFirst({
+    where: eq(courseTable.id, params.courseId),
+    columns: { status: true },
+    with: {
+      chapters: {
+        columns: { status: true },
+      },
+    },
+  });
   const tags = await db.query.tagTable.findMany({});
 
   return (
@@ -52,6 +62,7 @@ export default async function CourseEditPage({
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
           Edit Course
         </h1>
+        <PublishCourse courseId={params.courseId} course={course} />
       </div>
       <CourseEditForm courseId={params.courseId} tags={tags} />
     </div>

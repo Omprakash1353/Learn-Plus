@@ -29,7 +29,6 @@ export const chapterEditSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   isFree: z.boolean(),
-  isPublished: z.boolean(),
   video: z.instanceof(File).optional(),
 });
 
@@ -40,17 +39,20 @@ export function ChapterEditForm({
   courseId: string;
   chapterId: string;
 }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { data: chapterData } = useQuery({
-    queryKey: [`chapter-${chapterId}-${courseId}`],
-    queryFn: async () => {
-      const res = await chapterByIdAction(courseId, chapterId);
-      return res.data;
-    },
+    queryKey: [`chapter-${chapterId}`],
+    queryFn: () =>
+      chapterByIdAction(courseId, chapterId).then((res) => res.data),
     enabled: !!courseId,
     refetchOnWindowFocus: false,
     retry: false,
     staleTime: 1000 * 60 * 5,
   });
+
+  const { title, description, isFree, status } = chapterData || {};
+  const isPublished = status === "PUBLISHED";
 
   const { mutateAsync: updateChapterAsyncMutate } = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -61,30 +63,25 @@ export function ChapterEditForm({
     },
     onSuccess: (data) => {
       setIsSubmitting(false);
-      if (data.success) {
-        ToastMessage({ message: data?.message!, type: "success" });
-      } else {
-        ToastMessage({ message: data?.message || data?.error!, type: "error" });
-      }
-      queryClient.invalidateQueries({
-        queryKey: [`chapters-${chapterId}-${courseId}`],
+      const messageType = data.success ? "success" : "error";
+      ToastMessage({
+        message: data?.message || data?.error!,
+        type: messageType,
       });
+      queryClient.invalidateQueries({ queryKey: [`chapters-${chapterId}`] });
     },
   });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getChangedValues = useCallback(
     (values: z.infer<typeof chapterEditSchema>) => {
       const changedData: Partial<z.infer<typeof chapterEditSchema>> = {};
-
-      if (values.title !== chapterData?.title) changedData.title = values.title;
-      if (values.description !== chapterData?.description)
+      if (values.title !== title) changedData.title = values.title;
+      if (values.description !== description)
         changedData.description = values.description;
-
+      if (values.isFree !== isFree) changedData.isFree = values.isFree;
       return changedData;
     },
-    [chapterData],
+    [title, description, isFree],
   );
 
   const form = useForm<z.infer<typeof chapterEditSchema>>({
@@ -93,32 +90,30 @@ export function ChapterEditForm({
       title: "",
       description: "",
       isFree: false,
-      isPublished: false,
     },
   });
 
   useEffect(() => {
-    form.reset({
-      title: chapterData?.title || "",
-      description: chapterData?.description || "",
-      isFree: chapterData?.isFree || false,
-      isPublished: chapterData?.status === "PUBLISHED" ? true : false,
-    });
-  }, [form]);
+    if (chapterData) {
+      form.reset({
+        title: title || "",
+        description: description || "",
+        isFree: isFree || false,
+      });
+    }
+  }, [chapterData, form, title, description, isFree]);
 
   const onSubmit = useCallback(
     async (values: z.infer<typeof chapterEditSchema>) => {
       setIsSubmitting(true);
-      console.log(values);
       const changedValues = getChangedValues(values);
       const formData = new FormData();
       Object.entries(changedValues).forEach(([key, value]) => {
         formData.append(key, value as string);
       });
-
       await updateChapterAsyncMutate(formData);
     },
-    [],
+    [getChangedValues, updateChapterAsyncMutate],
   );
 
   return (
@@ -137,6 +132,7 @@ export function ChapterEditForm({
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="description"
@@ -154,6 +150,7 @@ export function ChapterEditForm({
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="isFree"
@@ -174,39 +171,7 @@ export function ChapterEditForm({
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="isPublished"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Publish</FormLabel>
-                <FormDescription>
-                  Make this chapter available to students
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="video"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Chapters List</FormLabel>
-              <FormControl>
-                {/* <ChapterLists /> */}
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? "Saving..." : "Save Changes"}
         </Button>

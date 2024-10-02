@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -32,6 +33,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient } from "@/contexts/query-provider";
 import {
+  courseByIdAction,
+  createChapter,
+  deleteChapterById,
+  editCourseTitleById,
+  getCourseChaptersById,
+  reorderChaptersById,
+} from "../_action";
+
+import {
   closestCenter,
   DndContext,
   KeyboardSensor,
@@ -49,14 +59,22 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, GripVertical, Pen, Plus, TagIcon, Trash2 } from "lucide-react";
+import {
+  Check,
+  GripVertical,
+  Loader2,
+  Pen,
+  Plus,
+  TagIcon,
+  Trash2,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { courseByIdAction } from "../_action";
+import Link from "next/link";
 
 const Editor = dynamic(() => import("@/components/editor"), { ssr: false });
 
@@ -77,11 +95,8 @@ const chapterSchema = z.object({
   title: z
     .string()
     .min(2, { message: "Chapter title must be at least 2 characters." }),
+  order: z.number().min(1, { message: "Order must be at least 1." }),
 });
-
-const chaptersSchema = z.array(chapterSchema);
-
-type Chapter = z.infer<typeof chapterSchema>;
 
 type CourseEditProps = {
   courseId: string;
@@ -101,6 +116,7 @@ export function CourseEditForm({ courseId, tags }: CourseEditProps) {
     queryKey: [`course-${courseId}`],
     queryFn: async () => {
       const res = await courseByIdAction(courseId);
+      console.debug(res);
       return res.data;
     },
     enabled: !!courseId,
@@ -177,7 +193,7 @@ export function CourseEditForm({ courseId, tags }: CourseEditProps) {
 
   if (isLoading || isFetching) {
     return (
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+      <div className="grid grid-rows-1 gap-8 md:grid-rows-2">
         <Skeleton className="h-[600px] w-full" />
         <Skeleton className="h-[600px] w-full" />
       </div>
@@ -357,7 +373,8 @@ export function CourseEditForm({ courseId, tags }: CourseEditProps) {
                         <div>
                           <TagIcon className="mx-auto h-12 w-12 text-muted-foreground" />
                           <p className="mt-2 font-medium">
-                            Drag 'n' drop an image here, or click to select one
+                            Drag &apos;n&apos; drop an image here, or click to
+                            select one
                           </p>
                           <p className="text-sm text-muted-foreground">
                             (Max size: 1MB)
@@ -375,202 +392,317 @@ export function CourseEditForm({ courseId, tags }: CourseEditProps) {
         </form>
       </Form>
 
-      <Chapters courseId={courseId} initChapters={courseData?.chapters || []} />
+      <Chapters courseId={courseId} />
     </div>
   );
 }
 
-function Chapters({
-  courseId,
-  initChapters = [],
-}: {
-  courseId: string;
-  initChapters: {
-    id: string;
-    title: string;
-  }[];
-}) {
-  console.debug(initChapters);
-  const [hasChapterChanges, setHasChapterChanges] = useState(false);
-  const [chapters, setChapters] = useState<Chapter[]>(initChapters);
+export const chaptersSchema = z.array(chapterSchema);
+
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  message: string;
+  error?: string;
+  data?: T;
+}
+
+export const chapterCreateSchema = z.object({
+  title: z.string().min(5, { message: "Title must be at least 5 characters." }),
+});
+
+type Chapter = {
+  id: string;
+  title: string;
+  order: number;
+  status: "PUBLISHED" | "DRAFT";
+};
+
+export function Chapters({ courseId }: { courseId: string }) {
+  const [hasOrderChanged, setHasOrderChanged] = useState(false);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [isCreateChapterOpen, setIsCreateChapterOpen] = useState(false);
 
-  // const { mutateAsync: publishCourseMutation } = useMutation({
-  //   mutationFn: async () => {
-  //     // const res = await publishCourse(courseId);
-  //     // 5 seconds wait
-  //     await new Promise((resolve) => setTimeout(resolve, 5000));
-  //     return {
-  //       success: true,
-  //       message: "Course published successfully",
-  //       error: "",
-  //     };
-  //   },
-  //   onSuccess: (data) => {
-  //     queryClient.invalidateQueries({ queryKey: [`course-${courseId}`] });
-  //     if (data.success) {
-  //       ToastMessage({ message: data.message, type: "success" });
-  //     } else {
-  //       ToastMessage({ message: data.error || data.message, type: "error" });
-  //     }
-  //   },
-  // });
+  const form = useForm<z.infer<typeof chapterCreateSchema>>({
+    resolver: zodResolver(chapterCreateSchema),
+    defaultValues: {
+      title: "",
+    },
+  });
 
-  const onChaptersSave = async (updatedChapters: Chapter[]) => {
+  const { data: chaptersData } = useQuery({
+    queryKey: [`course-${courseId}-chapters`],
+    queryFn: async () => {
+      const res = await getCourseChaptersById(courseId);
+      if (!res) throw new Error("Course not found");
+      setHasOrderChanged(false);
+      return res.data;
+    },
+    enabled: !!courseId,
+    refetchOnWindowFocus: false,
+    retry: false,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { mutateAsync: deleteChapterAsyncMutate } = useMutation({
+    mutationFn: async (chapterId: string) => {
+      const res = await deleteChapterById(chapterId);
+      if (!res.success)
+        throw new Error(res.error || "Failed to delete chapter");
+      return res;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: [`course-${courseId}-chapters`],
+      });
+      if (data.success) {
+        ToastMessage({ message: data?.message, type: "success" });
+      } else {
+        ToastMessage({ message: data?.error || data?.message, type: "error" });
+      }
+    },
+  });
+
+  const { mutateAsync: createChapterMutate } = useMutation({
+    mutationFn: async (values: { title: string }) => {
+      const res = await createChapter(courseId, values.title);
+      return res;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: [`course-${courseId}-chapters`],
+      });
+      if (data.success) {
+        ToastMessage({ message: data?.message, type: "success" });
+        setIsCreateChapterOpen(false);
+        form.reset();
+      } else {
+        ToastMessage({ message: data?.error || data?.message, type: "error" });
+      }
+    },
+  });
+
+  const { mutateAsync: updateChapterTitleMutate } = useMutation({
+    mutationFn: async (values: { chapterId: string; title: string }) => {
+      const res = await editCourseTitleById(values.chapterId, values.title);
+      if (!res.success)
+        throw new Error(res.error || "Failed to update chapter title");
+      return res;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: [`course-${courseId}-chapters`],
+      });
+      if (data.success) {
+        ToastMessage({ message: data?.message, type: "success" });
+      } else {
+        ToastMessage({ message: data?.error || data?.message, type: "error" });
+      }
+    },
+  });
+
+  const { mutateAsync: reorderChaptersMutate } = useMutation({
+    mutationFn: async (updatedChapters: Chapter[]) => {
+      const res = await reorderChaptersById(courseId, updatedChapters);
+      if (!res.success)
+        throw new Error(res.error || "Failed to reorder chapters");
+      return res;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: [`course-${courseId}-chapters`],
+      });
+      if (data.success) {
+        ToastMessage({ message: data?.message, type: "success" });
+      } else {
+        ToastMessage({ message: data?.error || data?.message, type: "error" });
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (chaptersData) setChapters(chaptersData);
+    return () => {
+      setChapters([]);
+    };
+  }, [chaptersData]);
+
+  const handleOrderChange = async (updatedChapters: Chapter[]) => {
     console.debug(updatedChapters);
-    // const formData = new FormData();
-    // formData.set("id", courseId);
-    // formData.append("chapters", JSON.stringify(updatedChapters));
-    // // await courseUpdateMutation(formData);
-    // setHasChapterChanges(false);
+    await reorderChaptersMutate(updatedChapters);
+    setHasOrderChanged(false);
   };
 
-  const onPublish = async () => {
-    // await publishCourseMutation();
+  const reorderChapters = (updatedChapters: Chapter[]) => {
+    setHasOrderChanged(true);
+    return updatedChapters.map((chapter, index) => ({
+      ...chapter,
+      order: index + 1,
+    }));
   };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   return (
-    <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Chapters</CardTitle>
-          <Dialog
-            open={isCreateChapterOpen}
-            onOpenChange={setIsCreateChapterOpen}
-          >
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Chapter
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Chapter</DialogTitle>
-                <DialogDescription>
-                  Enter the title for the new chapter.
-                </DialogDescription>
-              </DialogHeader>
-              <Input placeholder="Chapter title" id="chapterTitle" />
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsCreateChapterOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    const title = (
-                      document.getElementById(
-                        "chapterTitle",
-                      ) as HTMLInputElement
-                    ).value;
-                    if (title) {
-                      setChapters([
-                        ...chapters,
-                        { id: Date.now().toString(), title },
-                      ]);
-                      setHasChapterChanges(true);
-                    }
-                    setIsCreateChapterOpen(false);
-                  }}
-                >
-                  Add Chapter
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </CardHeader>
-        <CardContent>
-          <DndContext
-            sensors={useSensors(
-              useSensor(PointerSensor),
-              useSensor(KeyboardSensor, {
-                coordinateGetter: sortableKeyboardCoordinates,
-              }),
-            )}
-            collisionDetection={closestCenter}
-            onDragEnd={(event) => {
-              const { active, over } = event;
-              if (over && active.id !== over.id) {
-                setChapters((items) => {
-                  const oldIndex = items.findIndex(
-                    (item) => item.id === active.id,
-                  );
-                  const newIndex = items.findIndex(
-                    (item) => item.id === over.id,
-                  );
-                  return arrayMove(items, oldIndex, newIndex);
-                });
-                setHasChapterChanges(true);
-              }
-            }}
-          >
-            <SortableContext
-              items={chapters}
-              strategy={verticalListSortingStrategy}
-            >
-              {chapters.map((chapter, index) => (
-                <SortableChapterItem
-                  key={index}
-                  chapter={chapter}
-                  onEdit={(id, newTitle) => {
-                    setChapters(
-                      chapters.map((ch) =>
-                        ch.id === id ? { ...ch, title: newTitle } : ch,
-                      ),
-                    );
-                    setHasChapterChanges(true);
-                  }}
-                  onDelete={(id) => {
-                    setChapters(chapters.filter((ch) => ch.id !== id));
-                    setHasChapterChanges(true);
-                  }}
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Chapters</CardTitle>
+        <Dialog
+          open={isCreateChapterOpen}
+          onOpenChange={setIsCreateChapterOpen}
+        >
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Chapter
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Chapter</DialogTitle>
+              <DialogDescription>
+                Enter the title for the new chapter.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit((values) =>
+                  createChapterMutate(values),
+                )}
+              >
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Chapter Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter chapter title" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              ))}
-            </SortableContext>
-          </DndContext>
-          {hasChapterChanges && (
-            <div className="mt-4 flex justify-end">
-              <Button onClick={() => onChaptersSave(chapters)}>
-                Save Chapter Changes
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      {chapters.length > 0 && (
-        <Button onClick={onPublish} className="w-full">
-          Publish Course
-        </Button>
-      )}
-    </>
+                <DialogFooter className="mt-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setIsCreateChapterOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={
+                      form.formState.isSubmitting || form.formState.isValidating
+                    }
+                  >
+                    {form.formState.isSubmitting ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      "Add Chapter"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => {
+            const { active, over } = event;
+            if (over && active.id !== over.id) {
+              setChapters((items) => {
+                const oldIndex = items.findIndex(
+                  (item) => item.id === active.id,
+                );
+                const newIndex = items.findIndex((item) => item.id === over.id);
+                const reorderedItems = arrayMove(items, oldIndex, newIndex);
+                return reorderChapters(reorderedItems);
+              });
+            }
+          }}
+        >
+          <SortableContext
+            items={chapters}
+            strategy={verticalListSortingStrategy}
+          >
+            {chapters.map((chapter) => (
+              <SortableChapterItem
+                key={chapter.id}
+                courseId={courseId}
+                chapter={chapter}
+                onEdit={async (id, newTitle) => {
+                  setChapters(
+                    chapters.map((ch) =>
+                      ch.id === id ? { ...ch, title: newTitle } : ch,
+                    ),
+                  );
+                  await updateChapterTitleMutate({
+                    chapterId: id,
+                    title: newTitle,
+                  });
+                }}
+                onDelete={async (id) => {
+                  setChapters(chapters.filter((ch) => ch.id !== id));
+                  await deleteChapterAsyncMutate(id);
+                }}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+        {hasOrderChanged && (
+          <div className="mt-4 flex justify-end">
+            <Button onClick={() => handleOrderChange(chapters)}>
+              Save Chapter Changes
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
+
+type EditChapterFormValues = z.infer<typeof chapterCreateSchema>;
 
 function SortableChapterItem({
   chapter,
   onEdit,
   onDelete,
+  courseId,
 }: {
   chapter: Chapter;
   onEdit: (id: string, newTitle: string) => void;
   onDelete: (id: string) => void;
+  courseId: string;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: chapter.id });
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(chapter.title);
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
-  const handleSaveEdit = () => {
-    onEdit(chapter.id, editedTitle);
+  const form = useForm<EditChapterFormValues>({
+    resolver: zodResolver(chapterCreateSchema),
+    defaultValues: {
+      title: chapter.title,
+    },
+  });
+
+  const handleSubmit = (values: EditChapterFormValues) => {
+    onEdit(chapter.id, values.title);
     setIsEditing(false);
   };
 
@@ -584,33 +716,82 @@ function SortableChapterItem({
         <GripVertical className="h-5 w-5 cursor-move text-muted-foreground" />
       </div>
       {isEditing ? (
-        <Input
-          value={editedTitle}
-          onChange={(e) => setEditedTitle(e.target.value)}
-          onBlur={handleSaveEdit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleSaveEdit();
-            }
-          }}
-          className="flex-grow"
-          autoFocus
-        />
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="flex flex-grow items-center space-x-2"
+          >
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem className="flex-grow">
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="Enter chapter title"
+                      className="flex-grow"
+                      autoFocus
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <Button type="submit" size="icon" variant="ghost">
+              <Check className="h-4 w-4" />
+              <span className="sr-only">Save chapter title</span>
+            </Button>
+          </form>
+        </Form>
       ) : (
-        <span className="flex-grow">{chapter.title}</span>
+        <>
+          <span className="flex-grow text-sm">
+            <Button variant={"link"} asChild>
+              <Link
+                href={`/instructor/courses/${courseId}/chapters/${chapter.id}`}
+              >
+                {chapter.title}
+              </Link>
+            </Button>
+          </span>
+          <Badge>{chapter.status}</Badge>
+
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setIsEditing(true)}
+          >
+            <Pen className="h-4 w-4" />
+            <span className="sr-only">Edit chapter title</span>
+          </Button>
+        </>
       )}
-      {isEditing ? (
-        <Button size="icon" variant="ghost" onClick={handleSaveEdit}>
-          <Check className="h-4 w-4" />
-        </Button>
-      ) : (
-        <Button size="icon" variant="ghost" onClick={() => setIsEditing(true)}>
-          <Pen className="h-4 w-4" />
-        </Button>
-      )}
-      <Button size="icon" variant="ghost" onClick={() => onDelete(chapter.id)}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
+
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="ghost">
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Chapter</DialogTitle>
+          </DialogHeader>
+          <DialogDescription>
+            Are you sure you want to delete chapter{" "}
+            <span className="font-bold">{chapter.title}</span>? This action
+            can't be undone.
+          </DialogDescription>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={() => onDelete(chapter.id)} variant="destructive">
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

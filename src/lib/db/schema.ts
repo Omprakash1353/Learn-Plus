@@ -206,7 +206,9 @@ export const chapterTable = pgTable("chapters", {
   order: integer("order").notNull(),
   isFree: boolean("is_free").default(false),
   duration: real("duration").default(0),
-  videoId: text("video_id").references(() => videoTable.id),
+  videoId: text("video_id").references(() => videoTable.id, {
+    onDelete: "set null",
+  }),
   status: courseStatusEnums("status").default("DRAFT").notNull(),
   createdAt: timestamp("created_at", {
     withTimezone: true,
@@ -221,6 +223,7 @@ export const chapterTable = pgTable("chapters", {
 export const videoTable = pgTable("mux_data", {
   id: text("id").primaryKey().notNull(),
   asset_id: text("asset_id").notNull(),
+  storage_public_id: text("storage_public_id").notNull(),
   playbackId: text("playback_id"),
   createdAt: timestamp("created_at", {
     withTimezone: true,
@@ -234,8 +237,12 @@ export const videoTable = pgTable("mux_data", {
 
 export const userProgressTable = pgTable("user_progress", {
   id: text("id").primaryKey().notNull(),
-  userId: text("user_id").references(() => userTable.id),
-  chapterId: text("chapter_id").references(() => chapterTable.id),
+  userId: text("user_id").references(() => userTable.id, {
+    onDelete: "set null",
+  }),
+  chapterId: text("chapter_id").references(() => chapterTable.id, {
+    onDelete: "cascade",
+  }),
   isCompleted: boolean("is_completed").default(false),
   createdAt: timestamp("created_at", {
     withTimezone: true,
@@ -367,7 +374,7 @@ export const coursesRelations = relations(courseTable, ({ one, many }) => ({
   chapters: many(chapterTable),
 }));
 
-export const chaptersRelations = relations(chapterTable, ({ one }) => ({
+export const chaptersRelations = relations(chapterTable, ({ one, many }) => ({
   course: one(courseTable, {
     fields: [chapterTable.courseId],
     references: [courseTable.id],
@@ -376,6 +383,7 @@ export const chaptersRelations = relations(chapterTable, ({ one }) => ({
     fields: [chapterTable.videoId],
     references: [videoTable.id],
   }),
+  userChapterProgress: many(userProgressTable),
 }));
 
 export const tagsRelations = relations(tagTable, ({ many }) => ({

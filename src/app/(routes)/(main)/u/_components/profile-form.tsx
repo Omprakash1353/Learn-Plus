@@ -33,29 +33,13 @@ import { queryClient } from "@/contexts/query-provider";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getUserProfileAction } from "../_actions";
 
-// export type User = {
-//   id: string;
-//   name: string;
-//   email: string;
-//   role: "INSTRUCTOR" | "STUDENT" | "ADMIN";
-//   bio: string;
-//   profilePictureUrl: string;
-//   linkedin: string;
-//   qualification: string;
-//   expertize: string;
-//   instructor?: { rating: number; experience: number };
-// };
-
 export const profileFormSchema = z.object({
   name: z
     .string()
     .min(3, { message: "Name is required" })
     .refine((val) => val.trim() !== "", { message: "Name cannot be empty." }),
   email: z.string().email({ message: "Invalid email" }).optional(),
-  bio: z
-    .string()
-    .min(10, { message: "Bio must be at least 10 characters long" })
-    .optional(),
+  bio: z.string().optional(),
   expertize: z
     .string({ message: "Expertize must be at least 5 characters long" })
     .optional(),

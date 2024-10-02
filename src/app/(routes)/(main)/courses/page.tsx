@@ -1,12 +1,15 @@
 import { db } from "@/lib/db";
 import { validateRequest } from "@/lib/lucia";
 import { CoursePage } from "./_components/course-filter";
+import { eq } from "drizzle-orm";
+import { courseTable } from "@/lib/db/schema";
 
 export default async function HomePage() {
   const { user } = await validateRequest();
 
   const allTags = await db.query.tagTable.findMany({ columns: { name: true } });
   const courses = await db.query.courseTable.findMany({
+    where: eq(courseTable.status, "PUBLISHED"),
     with: {
       tags: {
         with: {
@@ -40,7 +43,7 @@ export default async function HomePage() {
       duration: 32,
     };
   });
-  
+
   console.log(user, parsedTags);
   console.log(parsedCourses);
 
