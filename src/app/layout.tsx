@@ -30,10 +30,11 @@ export const metadata: Metadata = {
     siteName: "Learn Plus",
     images: [
       {
-        url: "https://learn-plus-bucket.s3.ap-south-1.amazonaws.com/learn-plus-card.png",
+        url: "https://learn-plus-bucket.s3.ap-south-1.amazonaws.com/card.png",
         width: 1200,
         height: 630,
         alt: "Learn Plus - Online Learning Platform",
+        type: "image/png",
       },
     ],
     locale: "en_US",
@@ -46,7 +47,12 @@ export const metadata: Metadata = {
     description:
       "Transform your learning experience with Learn Plus. Access courses, track progress, and achieve your educational goals.",
     images: [
-      "https://learn-plus-bucket.s3.ap-south-1.amazonaws.com/learn-plus-card.png",
+      {
+        url: "https://learn-plus-bucket.s3.ap-south-1.amazonaws.com/card.png",
+        width: 1200,
+        height: 600,
+        alt: "Learn Plus - Online Learning Platform",
+      },
     ],
     creator: "@om_2003_",
     site: "@om_2003_",
@@ -61,7 +67,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Omprakash Mahto" }],
   category: "Education",
-  themeColor: "#000000",
+
   icons: {
     icon: "/favicon.ico",
   },
