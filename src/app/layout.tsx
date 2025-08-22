@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { env } from "@/lib/env";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,10 +16,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = "https://learnplus-five.vercel.app";
+const SITE_URL = env.BETTER_AUTH_URL;
 
 export const metadata: Metadata = {
-  title: "Learn Plus",
+  title: "Learn Plus - Online Learning Platform",
   description: "An online learning management system",
   metadataBase: new URL(SITE_URL),
 
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
     description:
       "Transform your learning experience with Learn Plus. Access courses, track progress, and achieve your educational goals.",
     url: SITE_URL,
-    siteName: "Learn Plus",
+    siteName: "Learn Plus - Online Learning Platform",
     images: [
       {
         url: "https://learn-plus-bucket.s3.ap-south-1.amazonaws.com/card.png",
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "Learn Plus - Online Learning Management System",
+    title: "Learn Plus - Online Learning Platform",
     description:
       "Transform your learning experience with Learn Plus. Access courses, track progress, and achieve your educational goals.",
     images: [
