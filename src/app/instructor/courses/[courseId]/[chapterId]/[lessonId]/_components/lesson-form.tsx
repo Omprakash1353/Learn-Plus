@@ -73,7 +73,7 @@ export function LessonForm({ data, chapterId, courseId }: Props) {
   return (
     <>
       <Link
-        href={`/admin/courses/${courseId}/edit`}
+        href={`/instructor/courses/${courseId}/edit`}
         className={buttonVariants({ variant: "outline", className: "mb-6" })}
       >
         <ArrowLeft className="size-4" /> <span>Go Back</span>

@@ -1,13 +1,14 @@
 "use server";
 
-import { and, asc, desc, eq } from "drizzle-orm";
 import { request } from "@arcjet/next";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireInstructor } from "@/app/data/instructor/require-instructor";
 import { db } from "@/db";
 import { chapter, course, lesson } from "@/db/schema";
 import arcjet, { fixedWindow } from "@/lib/arcjet";
+import { deleteFileFromS3 } from "@/lib/s3-client";
 import {
   chapterSchema,
   ChapterSchemaType,
@@ -44,10 +45,27 @@ export async function editCourse(
       return { status: "error", message: "Invalid data" };
     }
 
+    const existingCourse = await db.query.course.findFirst({
+      where: and(eq(course.id, courseId), eq(course.userId, session.user.id)),
+      columns: { fileKey: true },
+    });
+
+    if (!existingCourse) {
+      return { status: "error", message: "Course not found" };
+    }
+
     await db
       .update(course)
       .set({ ...result.data })
       .where(and(eq(course.id, courseId), eq(course.userId, session.user.id)));
+
+    if (
+      result.data.fileKey &&
+      existingCourse.fileKey &&
+      result.data.fileKey !== existingCourse.fileKey
+    ) {
+      await deleteFileFromS3(existingCourse.fileKey);
+    }
 
     return {
       status: "success",
@@ -88,7 +106,7 @@ export async function reorderLessons(
       );
     });
 
-    revalidatePath(`/admin/courses/${courseId}/edit`);
+    revalidatePath(`/instructor/courses/${courseId}/edit`);
 
     return {
       status: "success",
@@ -128,7 +146,7 @@ export async function reorderChapters(
       );
     });
 
-    revalidatePath(`/admin/courses/${courseId}/edit`);
+    revalidatePath(`/instructor/courses/${courseId}/edit`);
 
     return { status: "success", message: "Chapters reordered successfully" };
   } catch (error) {
@@ -168,7 +186,7 @@ export async function createChapter(
       });
     });
 
-    revalidatePath(`/admin/courses/${result.data.courseId}/edit`);
+    revalidatePath(`/instructor/courses/${result.data.courseId}/edit`);
 
     return {
       status: "success",
@@ -214,7 +232,7 @@ export async function createLesson(
       });
     });
 
-    revalidatePath(`/admin/courses/${result.data.courseId}/edit`);
+    revalidatePath(`/instructor/courses/${result.data.courseId}/edit`);
 
     return {
       status: "success",
@@ -245,7 +263,6 @@ export async function deleteLesson({
       with: {
         lessons: {
           orderBy: asc(lesson.position),
-          columns: { id: true, position: true },
         },
       },
     });
@@ -281,7 +298,15 @@ export async function deleteLesson({
         .where(and(eq(lesson.id, lessonId), eq(lesson.chapterId, chapterId)));
     });
 
-    revalidatePath(`/admin/courses/${courseId}/edit`);
+    const keysToDelete: string[] = [];
+    if (lessonToDelete.thumbnailKey) keysToDelete.push(lessonToDelete.thumbnailKey);
+    if (lessonToDelete.videoKey) keysToDelete.push(lessonToDelete.videoKey);
+
+    if (keysToDelete.length > 0) {
+      await Promise.all(keysToDelete.map((key) => deleteFileFromS3(key)));
+    }
+
+    revalidatePath(`/instructor/courses/${courseId}/edit`);
 
     return {
       status: "success",
@@ -309,8 +334,10 @@ export async function deleteChapter({
       where: eq(course.id, courseId),
       with: {
         chapters: {
-          columns: { id: true, position: true },
           orderBy: asc(chapter.position),
+          with: {
+            lessons: true,
+          },
         },
       },
     });
@@ -344,7 +371,17 @@ export async function deleteChapter({
       await tx.delete(chapter).where(eq(chapter.id, chapterId));
     });
 
-    revalidatePath(`/admin/courses/${courseId}/edit`);
+    const keysToDelete: string[] = [];
+    chapterToDelete.lessons.forEach((ls) => {
+      if (ls.thumbnailKey) keysToDelete.push(ls.thumbnailKey);
+      if (ls.videoKey) keysToDelete.push(ls.videoKey);
+    });
+
+    if (keysToDelete.length > 0) {
+      await Promise.all(keysToDelete.map((key) => deleteFileFromS3(key)));
+    }
+
+    revalidatePath(`/instructor/courses/${courseId}/edit`);
 
     return {
       status: "success",

@@ -364,7 +364,7 @@ export function CourseStructure({ data }: Props) {
                                       </Button>
                                       <FileText className="size-4" />
                                       <Link
-                                        href={`/admin/courses/${data.id}/${item.id}/${lesson.id}`}
+                                        href={`/instructor/courses/${data.id}/${item.id}/${lesson.id}`}
                                       >
                                         {lesson.title}
                                       </Link>

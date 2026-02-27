@@ -29,11 +29,10 @@ async function authMiddleware(request: NextRequest) {
 }
 
 export default createMiddleware(aj, async (request: NextRequest) => {
-  if (request.nextUrl.pathname.startsWith("/admin")) {
-    return authMiddleware(request);
-  }
-
-  if (request.nextUrl.pathname.startsWith("/instructor")) {
+  if (
+    request.nextUrl.pathname.startsWith("/admin") ||
+    request.nextUrl.pathname.startsWith("/instructor")
+  ) {
     return authMiddleware(request);
   }
 

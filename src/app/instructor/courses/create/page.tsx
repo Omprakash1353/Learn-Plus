@@ -78,7 +78,7 @@ export default function CourseCreationPage() {
       if (data.status === "success") {
         toast.success(data.message);
         form.reset();
-        router.push("/admin/courses");
+        router.push("/instructor/courses");
       } else if (data.status === "error") {
         toast.error(data.message);
       }

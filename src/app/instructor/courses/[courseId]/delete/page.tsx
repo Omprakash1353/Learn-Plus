@@ -32,7 +32,7 @@ export default function DeleteCoursePage() {
 
       if (result.status === "success") {
         toast.success(result.message);
-        router.push("/admin/courses");
+        router.push("/instructor/courses");
       } else if (result.status === "error") {
         toast.error(result.message);
       }
@@ -49,7 +49,7 @@ export default function DeleteCoursePage() {
         <CardContent className="flex justify-between items-center">
           <Link
             className={buttonVariants({ variant: "outline" })}
-            href={`/admin/courses`}
+            href={`/instructor/courses`}
           >
             Cancel
           </Link>
