@@ -26,12 +26,12 @@ export function Navbar() {
         >
           <Image
             src={"/logo.png"}
-            alt="Nexus Learn logo"
+            alt="Learn Plus logo"
             className="size-9"
             width={100}
             height={100}
           />
-          <span className="font-bold">Nexus Learn</span>
+          <span className="font-bold">Learn Plus</span>
         </Link>
 
         <nav className="hidden md:flex md:flex-1 md:justify-between md:items-center">

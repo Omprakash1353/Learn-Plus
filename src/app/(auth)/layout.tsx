@@ -40,13 +40,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           className="flex justify-center items-center self-center gap-2 font-medium text-xl"
           href="/"
         >
-          <Image
-            src="/logo.png"
-            alt="Nexus Learn logo"
-            width={30}
-            height={30}
-          />
-          Nexus Learn
+          <Image src="/logo.png" alt="Learn Plus logo" width={30} height={30} />
+          Learn Plus
         </Link>
         {children}
         <div className="text-muted-foreground text-xs text-center text-balance">

@@ -154,7 +154,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   height={100}
                   className="size-5"
                 />
-                <span className="font-semibold text-base">Nexus Learn</span>
+                <span className="font-semibold text-base">Learn Plus</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -172,7 +172,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <CardTitle className="text-sm">Become an Instructor</CardTitle>
                 <CardDescription>
                   Share your knowledge and earn money by creating courses on
-                  Nexus Learn.
+                  Learn Plus.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-4">

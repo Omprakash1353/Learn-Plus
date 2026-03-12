@@ -19,22 +19,22 @@ const geistMono = Geist_Mono({
 const SITE_URL = env.BETTER_AUTH_URL;
 
 export const metadata: Metadata = {
-  title: "Nexus Learn - Online Learning Platform",
+  title: "Learn Plus - Online Learning Platform",
   description: "An online learning management system",
   metadataBase: new URL(SITE_URL),
 
   openGraph: {
-    title: "Nexus Learn - Online Learning Management System",
+    title: "Learn Plus - Online Learning Management System",
     description:
-      "Transform your learning experience with Nexus Learn. Access courses, track progress, and achieve your educational goals.",
+      "Transform your learning experience with Learn Plus. Access courses, track progress, and achieve your educational goals.",
     url: SITE_URL,
-    siteName: "Nexus Learn - Online Learning Platform",
+    siteName: "Learn Plus - Online Learning Platform",
     images: [
       {
         url: "https://learn-plus-bucket.s3.ap-south-1.amazonaws.com/card.png",
         width: 1200,
         height: 630,
-        alt: "Nexus Learn - Online Learning Platform",
+        alt: "Learn Plus - Online Learning Platform",
         type: "image/png",
       },
     ],
@@ -44,15 +44,15 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "Nexus Learn - Online Learning Platform",
+    title: "Learn Plus - Online Learning Platform",
     description:
-      "Transform your learning experience with Nexus Learn. Access courses, track progress, and achieve your educational goals.",
+      "Transform your learning experience with Learn Plus. Access courses, track progress, and achieve your educational goals.",
     images: [
       {
         url: "https://learn-plus-bucket.s3.ap-south-1.amazonaws.com/card.png",
         width: 1200,
         height: 600,
-        alt: "Nexus Learn - Online Learning Platform",
+        alt: "Learn Plus - Online Learning Platform",
       },
     ],
     creator: "@om_2003_",

@@ -11,7 +11,7 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        <h1 className="font-medium text-base">Nexus Learn</h1>
+        <h1 className="font-medium text-base">Learn Plus</h1>
         <div className="flex items-center gap-2 ml-auto">
           <ThemeToggle />
         </div>

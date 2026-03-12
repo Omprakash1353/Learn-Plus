@@ -242,7 +242,7 @@ export function AppSidebar({
                   height={100}
                   className="size-5"
                 />
-                <span className="font-semibold text-base">Nexus Learn</span>
+                <span className="font-semibold text-base">Learn Plus</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
